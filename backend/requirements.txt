@@ -32,3 +32,4 @@ alembic==1.20.1
 psycopg[binary
 pwdlib[argon2]==0.3.1l-validator==2.3.0
 pwdlib==0.3.1
+PyJWT==2.15.1

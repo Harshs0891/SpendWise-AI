@@ -1,18 +1,19 @@
-
-# Import FastAPI utilities for routing, dependency injection, and HTTP errors.
 from fastapi import APIRouter, Depends, HTTPException, status
-
-# Import SQLAlchemy session type.
 from sqlalchemy.orm import Session
 
-# Import database dependency.
+from app.core.config import get_settings
 from app.db.session import get_db
-
-# Import registration service.
+from app.schemas.user import (
+    TokenResponse,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+)
 from app.services.auth_service import register_user
+from app.services.login_service import authenticate_user
 
-# Import request and response schemas.
-from app.schemas.user import UserCreate, UserResponse
+
+settings = get_settings()
 
 
 # Create a router for authentication-related endpoints.
@@ -58,4 +59,37 @@ def register(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
+        ) from exc
+
+
+
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+)
+def login(
+    user_data: UserLogin,
+    db: Session = Depends(get_db),
+):
+    """
+    Authenticate a user and return a JWT access token.
+    """
+
+    try:
+        # Authenticate the user and generate an access token.
+        access_token = authenticate_user(db, user_data)
+
+        # Return the authentication response.
+        return TokenResponse(
+            access_token=access_token,
+            token_type="bearer",
+            expires_in=settings.access_token_expire_minutes * 60,
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+            headers={"WWW-Authenticate": "Bearer"},
         ) from exc

@@ -129,3 +129,88 @@ The PASS outcomes above are user-reported; raw terminal transcripts were not att
 - Tested: formal database milestone tests NOT RUN.
 - Deployed: NOT RUN; no deployment was performed or verified.
 - Implementation reference: a55f7aa0a3fb9dec7b7c753643c52a91d6221fdf.
+
+
+## 2026-11-05 — User registration foundation
+
+### Objective and actual work
+Implemented the first user-registration flow locally: request/response validation, Argon2id password hashing, a registration service, a FastAPI authentication router, and manual PostgreSQL verification.
+
+### Files implemented in the local working tree
+The user shared the implementation for review in this session. The following paths were part of the feature work; a GitHub application-code commit was not supplied or verified as part of this documentation update.
+
+- `backend/app/schemas/__init__.py` — package marker/comment for API schemas.
+- `backend/app/schemas/user.py` — `UserCreate` validates email with `EmailStr` and constrains password length to 8–128 characters; `UserResponse` exposes UUID, email, active status, and timestamps, using `ConfigDict(from_attributes=True)`. Password and password_hash are intentionally excluded.
+- `backend/app/core/security.py` — creates a reusable `PasswordHash.recommended()` hasher from pwdlib and exposes `hash_password()` and `verify_password()`.
+- `backend/app/services/__init__.py` — services package marker.
+- `backend/app/services/auth_service.py` — normalizes email with strip/lower, checks for an existing user, hashes the password, creates the User ORM object, commits, refreshes, and rolls back on an IntegrityError. The service's database unique index remains the final duplicate guard.
+- `backend/app/api/v1/endpoints/__init__.py` — endpoint package marker.
+- `backend/app/api/v1/endpoints/auth.py` — exposes `POST /auth/register`, injects `get_db`, delegates to the service, returns `UserResponse`, configures HTTP 201, and maps the service's duplicate-email `ValueError` to HTTP 409.
+- `backend/app/main.py` — includes the authentication router under the configured API prefix while retaining the health endpoint.
+- `backend/requirements.txt` — user reported pinning `email-validator` and `pwdlib==0.3.1`; the exact email-validator version was not included in the session evidence.
+
+### Architecture and request flow
+1. FastAPI receives `POST /api/v1/auth/register`.
+2. Pydantic validates the request using `UserCreate`; invalid email/password shape is rejected at the API boundary.
+3. FastAPI injects a request-scoped SQLAlchemy Session through `Depends(get_db)`.
+4. The router delegates to `register_user()` in the service layer.
+5. The service canonicalizes the email for this registration path, checks for an existing row, and hashes the submitted password with pwdlib's recommended Argon2id configuration.
+6. The service creates a User ORM instance and persists it in PostgreSQL.
+7. The router returns the ORM object through `UserResponse`, which filters out password fields.
+
+### Data and security details
+- No schema migration was needed; the existing users table already contains UUID id, unique indexed email, password_hash, is_active, created_at, and updated_at.
+- The observed stored hash used the Argon2id format (`$argon2id$v=19$m=65536,t=3,p=4$...`). The full hash and submitted password are intentionally omitted from this log.
+- The response schema deliberately excludes both plaintext password and password_hash.
+- Email is stripped and lowercased in the registration service. The existing PostgreSQL unique index is case-sensitive; normalization is currently enforced by this application path, not by a database-level case-insensitive index or CITEXT type.
+- The initial existence lookup improves the ordinary duplicate-email response, but it cannot prevent concurrent requests from racing. PostgreSQL's unique index is the final integrity guard.
+- The shared service code includes rollback on IntegrityError. The exact final implementation that maps a PostgreSQL unique-index violation from a concurrent race to a duplicate-email business error was not re-shared/verified in this session; do not claim that race path is fully verified.
+- The API router maps a service-level ValueError to HTTP 409. Other database integrity errors should not be mislabeled as duplicate email.
+- Password hashing is intentionally performed before persistence; plaintext passwords must never be stored or logged.
+
+### Dependencies and key implementation choices
+- `email-validator` enables Pydantic `EmailStr` validation.
+- `pwdlib==0.3.1` with the Argon2 extra supplies the password-hashing implementation.
+- `PasswordHash.recommended()` avoids hand-rolling salt and Argon2 parameter handling.
+- Request and response schemas are separate so input-only secrets cannot leak in output.
+- Router/service separation keeps HTTP status handling out of business logic.
+
+### Manual verification reported by the user
+| Check | Result | Evidence / classification |
+|---|---|---|
+| Password hash generation | PASS | User ran a Python one-liner; hash generated was truthy. |
+| Correct password verification | PASS | User-reported output: True. |
+| Incorrect password verification | PASS | User-reported output: False. |
+| Duplicate registration response | PASS | User shared response body: `{"detail":"An account with this email already exists."}`; router code configures HTTP 409 for the service ValueError. |
+| Successful user persistence | PASS | User shared a PostgreSQL row with UUID, demo email, Argon2id hash prefix, and is_active=true. Full hash omitted. |
+| Successful registration response body/status | NOT CAPTURED | The database row proves persistence; the actual HTTP 201 response was not included in the supplied evidence. |
+| Concurrent duplicate registration race | NOT VERIFIED | Unique index exists and rollback handling was added, but a concurrent-request scenario was not run/reported. |
+| Formal pytest suite | NOT RUN | Intentionally deferred until backend development is complete, per the user's instruction. |
+| Deployment | NOT RUN | No deployment performed or verified. |
+
+The checks above are user-reported manual verification, not a formal automated test pass. No performance metrics were measured.
+
+### Known gaps and next work
+- Verify the final local source for all feature files and commit the application implementation separately from documentation.
+- Capture the successful HTTP 201 response and verify the response contains no password fields.
+- Verify precise handling of a concurrent unique-index violation and confirm the SQLAlchemy Session is rolled back.
+- Decide whether case-insensitive email uniqueness should be enforced at the database level (for example, normalized stored values with a matching uniqueness policy or a functional unique index).
+- Login, token/session issuance, current-user endpoint, password reset, email verification, rate limiting, and user-scoped finance authorization remain unimplemented.
+- Formal tests remain deferred until backend feature development is complete.
+
+### Learning and interview takeaways
+- Pydantic request schemas validate external input; response schemas define the public API contract.
+- `from_attributes=True` lets Pydantic serialize SQLAlchemy ORM attributes.
+- Argon2id is a password-hashing algorithm, not reversible encryption; verification checks a candidate password against the encoded hash.
+- FastAPI dependency injection supplies a request-scoped database Session.
+- Services own business logic; routers translate service outcomes into HTTP responses.
+- A pre-insert SELECT is not concurrency-safe by itself; a database unique constraint is authoritative.
+- A failed SQLAlchemy transaction must be rolled back before the Session can be reused.
+- HTTP 201 indicates successful resource creation; HTTP 409 represents a request conflict.
+
+### Session outcome
+- Implemented locally (user-shared code reviewed): Pydantic schemas, Argon2 password helper, registration service, registration router, and router wiring.
+- Manually verified (user-reported): password hashing/verification, duplicate-email response, and persisted PostgreSQL user row containing an Argon2id hash.
+- Tested: formal pytest suite NOT RUN, by project decision.
+- Deployed: NOT RUN.
+- GitHub application-code commit: not supplied or verified in this documentation-only update.

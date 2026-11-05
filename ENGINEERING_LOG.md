@@ -214,3 +214,109 @@ The checks above are user-reported manual verification, not a formal automated t
 - Tested: formal pytest suite NOT RUN, by project decision.
 - Deployed: NOT RUN.
 - GitHub application-code commit: not supplied or verified in this documentation-only update.
+
+
+## 2026-11-06 — Authentication milestone: registration, JWT login, and current user
+
+### Objective
+Complete and manually verify the first end-to-end authentication flow: register a user, authenticate with email/password, issue a JWT access token, and use it to retrieve the authenticated user's profile.
+
+### Work completed
+- [x] User registration at `POST /api/v1/auth/register`, with Pydantic validation and Argon2 password hashing.
+- [x] JWT configuration and token creation/decoding utilities.
+- [x] Login request/response schemas, login service, and `POST /api/v1/auth/login`.
+- [x] Bearer-token extraction and `get_current_user` dependency.
+- [x] Protected `GET /api/v1/users/me` endpoint.
+- [x] Authentication and users routers registered in `backend/app/main.py`.
+- [x] Application changes committed and pushed on `feat/user-registration`.
+
+### Implementation and request flow
+1. Registration validates the email/password input, normalizes the email, hashes the password using pwdlib's Argon2 implementation, and persists the user.
+2. Login looks up the normalized email, verifies the submitted password against the stored hash, rejects inactive users, and creates a signed access token.
+3. The JWT uses the configured HS256 algorithm, places the user's UUID in `sub`, and includes `iat` and `exp` claims.
+4. The configured access-token lifetime is 30 minutes (1,800 seconds). The login response returns `access_token`, `token_type: bearer`, and `expires_in` in seconds.
+5. `OAuth2PasswordBearer` extracts the bearer token. `get_current_user` validates/decodes it, parses the UUID subject, retrieves the user by primary key, and rejects missing or inactive users.
+6. `GET /api/v1/users/me` obtains the user through `Depends(get_current_user)` and serializes it through `UserResponse`.
+
+### Relevant files
+- `backend/app/core/config.py` — JWT settings.
+- `backend/app/core/jwt.py` — access-token creation and decoding.
+- `backend/app/core/security.py` — Argon2 password hashing and verification.
+- `backend/app/schemas/user.py` — registration, login, public user, and token schemas.
+- `backend/app/services/auth_service.py` — registration business logic.
+- `backend/app/services/login_service.py` — credential verification and token issuance.
+- `backend/app/api/v1/endpoints/auth.py` — registration and login routes.
+- `backend/app/api/dependencies.py` — current-user authentication dependency.
+- `backend/app/api/v1/endpoints/users.py` — protected current-user route.
+- `backend/app/main.py` — router registration.
+
+### API surface
+| Method | Endpoint | Authentication |
+|---|---|---|
+| GET | `/api/v1/health` | Public |
+| POST | `/api/v1/auth/register` | Public |
+| POST | `/api/v1/auth/login` | Public |
+| GET | `/api/v1/users/me` | Bearer token required |
+
+### Manual verification (Postman and local checks)
+The user reported that the complete Postman flow worked as expected:
+- Login with the registered demo account succeeded and returned an access-token response.
+- Calling `GET /api/v1/users/me` with the bearer token succeeded and returned the logged-in user's profile.
+- The profile response did not expose `password_hash`.
+- Calling `GET /api/v1/users/me` without a bearer token returned `401 Unauthorized`.
+
+Additional manual checks reported earlier:
+- JWT generation and decoding succeeded.
+- Decoded `sub` matched the original user UUID.
+- `exp - iat` was 1,800 seconds.
+- Settings loaded the HS256 algorithm and 30-minute expiry without printing the secret.
+- Password hashing succeeded; correct-password verification returned true and incorrect-password verification returned false.
+- The FastAPI application imported successfully and the users endpoint appeared in Swagger UI.
+
+These are manual checks and user-reported results, not a formal automated test run. The successful Postman response bodies and raw request/response transcripts were not attached to the repository.
+
+### Security, correctness, and remaining gaps
+- Passwords are stored as Argon2 hashes; plaintext passwords and password hashes are excluded from public user responses.
+- A generic invalid-credentials response reduces account-enumeration leakage.
+- The current-user identity comes from the validated token, not a client-supplied user ID.
+- Authentication is not authorization: every future finance query and mutation must independently enforce ownership using the authenticated user's ID.
+- Refresh tokens, logout/revocation, token rotation, rate limiting, and issuer/audience policy are not implemented or verified yet.
+- The access token is short-lived (30 minutes); production HTTPS and deliberate secure client-side token storage remain deployment concerns.
+
+### Decisions and trade-offs
+- HS256 is a simple symmetric signing choice for the current single-backend application; the signing secret must remain private and have a deliberate rotation strategy.
+- UUID in the JWT subject is stable if the user's email changes.
+- A short-lived access token limits the acceptance window for a stolen token but does not provide immediate revocation.
+- Login business logic stays in a service layer; the router owns HTTP status and response behavior.
+- A dedicated `UserResponse` schema prevents private ORM fields from leaking.
+
+### Interview checkpoint
+1. **What are the three parts of a JWT?** Header, payload, and signature. The signature protects integrity/authenticity; it does not encrypt the payload.
+2. **Does Base64URL encrypt JWT claims?** No. It is an encoding; anyone holding the token can decode its payload.
+3. **Why use UUID in `sub`?** It is a stable user identifier that is independent of a mutable email address.
+4. **What does `OAuth2PasswordBearer` do?** It extracts the bearer token and documents the security scheme; the application dependency performs token validation.
+5. **Why fetch the user from the database after decoding the JWT?** The account may have been deleted or deactivated since token issuance.
+6. **Authentication vs authorization?** Authentication establishes identity; authorization determines which resources that identity may access.
+7. **Why use Argon2?** It is a password-hashing algorithm designed to make offline guessing expensive; stored hashes are verified, not decrypted.
+8. **Why use one generic login error?** It avoids revealing whether an email is registered.
+9. **Does JWT expiry immediately revoke a token?** No. The backend rejects it after expiry; immediate revocation requires additional server-side state or a token-version strategy.
+
+### Planned / implemented / verified / deployed
+- **Implemented:** registration, Argon2 password handling, JWT utility, login service/endpoint, bearer-token dependency, and protected current-user endpoint.
+- **Manually verified:** token generation/decoding and lifetime; successful Postman login; authenticated `/users/me`; unauthenticated `/users/me` rejection; safe profile response.
+- **Automated tests:** intentionally deferred until backend development is complete; no pytest suite was run for this milestone.
+- **Deployed:** no deployment performed or verified.
+- **Performance:** no performance metrics measured.
+
+### Git references
+- Branch: `feat/user-registration`
+- `f47a71b` — `feat: implement user registration`
+- `585e7cf` — `feat: implement JWT login authentication`
+- `3da06f1` — `feat: add authenticated current user endpoint`
+
+### Next session
+1. Design the Accounts module's domain model and API before implementation.
+2. Decide account-type and credit-card balance semantics explicitly.
+3. Use PostgreSQL NUMERIC and Python Decimal for monetary values; keep currency explicit.
+4. Enforce authenticated-user ownership on every account query and mutation.
+5. Keep formal tests deferred until the backend implementation phase is complete.

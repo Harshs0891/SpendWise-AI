@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 
 from app.core.config import get_settings
-
-# Import the authentication router.
 from app.api.v1.endpoints.auth import router as auth_router
+from app.api.v1.endpoints.users import router as users_router
+
 
 settings = get_settings()
 
@@ -13,14 +13,20 @@ app = FastAPI(
     description="Personal Finance Management Platform",
 )
 
-# Register authentication endpoints under the configured API version prefix.
+# Register authentication endpoints.
 app.include_router(
     auth_router,
     prefix=settings.api_v1_prefix,
 )
 
+# Register user endpoints.
+app.include_router(
+    users_router,
+    prefix=settings.api_v1_prefix,
+)
 
-# Check whether the SpendWise AI backend is healthy.
+
+# Health-check endpoint.
 @app.get(f"{settings.api_v1_prefix}/health")
 def health_check():
     """

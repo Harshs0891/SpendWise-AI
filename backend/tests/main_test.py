@@ -17,4 +17,5 @@ def test_health_check_returns_expected_data():
     assert response.json() == {
         "status": "healthy",
         "application": "SpendWise AI",
+        "environment": "development",
     }

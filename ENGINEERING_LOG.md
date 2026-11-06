@@ -320,3 +320,98 @@ These are manual checks and user-reported results, not a formal automated test r
 3. Use PostgreSQL NUMERIC and Python Decimal for monetary values; keep currency explicit.
 4. Enforce authenticated-user ownership on every account query and mutation.
 5. Keep formal tests deferred until the backend implementation phase is complete.
+
+
+## 2026-11-06 — Accounts, Categories, and Transactions backend modules
+
+### Objective
+Complete the core finance data APIs and verify the endpoints manually in Postman before moving to analytics or frontend work.
+
+### Work completed
+- [x] Accounts API: create, list, retrieve, update, and soft archive accounts.
+- [x] Transactions API: create, list, retrieve, and PATCH transactions.
+- [x] Categories API: create, list, retrieve, update, and delete categories, with shared system categories and user-owned custom categories.
+- [x] Added a system-category seeder with 19 defaults (12 expense, 7 income).
+- [x] Registered transaction and category routes; verified their presence in Swagger/OpenAPI.
+- [x] Manually exercised the Accounts and Transactions endpoints in Postman. The user reported the tested flows and edge cases working.
+- [x] User confirmed the Categories feature PR was merged.
+
+### Implementation details
+
+**Accounts**
+- Account types: cash, bank, savings, wallet, credit_card.
+- Account data includes currency, opening_balance, active status, and timestamps.
+- Archive is soft deletion. Archived accounts are excluded from the active list and remain retrievable with is_active=false.
+- All account access is scoped to the authenticated user.
+
+**Transactions**
+- Income/expense transaction records include account, optional category, amount, currency, description, merchant, transaction_date, notes, and timestamps.
+- List endpoint supports type, account_id, category_id, start_date, end_date, limit, and offset; response includes items, total, limit, and offset.
+- Service validates account ownership, active status, and currency equality. Optional category must be system/shared or user-owned and must match transaction kind.
+- Amounts use PostgreSQL NUMERIC / Python Decimal semantics.
+- No DELETE endpoint was added; financial-record reversal/audit policy remains a future design decision.
+
+**Categories**
+- System categories use user_id=NULL and is_system=true; custom categories are associated with their owner.
+- Seeder inserts missing shared categories and is idempotent: first run inserted 19; second run inserted 0. Database counts reported 12 expense and 7 income categories.
+- Category deletion is configured to set transaction category_id to NULL so the transaction itself remains.
+
+### Manual verification reported
+
+| Module | Checks and outcomes |
+|---|---|
+| Accounts | Create/list/get/update/archive; archived record hidden from active list; missing token returned 401; cross-user account lookup returned 404. User reported Postman checks passed. |
+| Transactions | Create/get/list; type/account filters; pagination; invalid date range returned 422; PATCH updated amount, description, merchant, and notes. User reported checks passed. |
+| Categories | System category list returned expected system metadata; custom Gym & Fitness category creation succeeded; user reported category checks working. Exact custom-delete and cross-user category-denial cases were previously not individually confirmed. |
+| Seeder | First execution inserted 19; second inserted 0; grouped counts were 12 expense and 7 income. |
+
+These are manual checks, not automated test-suite results. Automated tests remain intentionally deferred until backend feature development is complete. No deployment or performance benchmark is claimed.
+
+### Representative development records
+- Active account: `53ef8f22-c27a-4d51-acfe-0fc0b92b7a03`, SpendWise Primary Account, savings, INR.
+- Transaction: `6ab2cdf5-2875-45e5-a09a-fb16f971e29c`, expense; amount was updated from INR 1,250.5000 to INR 1,500.0000 during PATCH verification.
+- Custom category: `05fc6eb0-3081-45e7-8cd6-fe9d049b270c`, Gym & Fitness, expense.
+- These are local development verification records, not production data.
+
+### Database and migration notes
+- Tables: users, accounts, categories, transactions, alembic_version.
+- Last applied Alembic revision reported: `5bf5efb87ed4`.
+- No new migration was needed for category API routes or system-category seeding.
+- Local PostgreSQL: 18.6; database spendwise_db; application role spendwise_user.
+
+### Git references
+- Accounts + Transactions implementation commit: `a31a37c5f0bad5d0480ea52e0c1c7b6641ebd234`.
+- Categories implementation commit: `b877e977c124a19586378c9fa129f96e2de0c1c1`.
+- Categories merge commit on main: `8f9bd6e876cc8d6b98c47b0f5230843e4e092dd9`.
+- User confirmed the Categories PR was merged.
+- Repository: https://github.com/Harshs0891/SpendWise-AI
+
+### Decisions and trade-offs
+- Keep finance operations in the backend service layer and scope every query by authenticated user.
+- Use soft archive for accounts to preserve references and history.
+- Keep shared system categories separate from user-owned custom categories.
+- Preserve transactions when a category is deleted by nulling the category reference.
+- Do not expose transaction deletion until reversal/audit semantics are defined.
+- Do not aggregate balances across different currencies without an explicit exchange-rate conversion policy.
+
+### Known gaps
+- Exact custom-category DELETE and cross-user category-denial outcomes were not individually captured as separate confirmed results.
+- Formal automated tests remain deferred by the user's requested workflow.
+- Transfers, budgets, analytics, AI assistant, frontend, and deployment are not yet verified as implemented.
+- Credit-card balance semantics must be decided before account-balance analytics are implemented.
+- Local Git synchronization and creation of the next feature branch have not yet been confirmed.
+
+### Learning and interview takeaways
+- Soft deletion preserves historical references while changing active-resource visibility.
+- Resource ownership must be checked for both primary records and nested account/category references.
+- Currency equality is a guard against invalid cross-currency arithmetic.
+- Database foreign-key actions can preserve transactions when optional category references are removed.
+- An idempotent seeder is safe to rerun during setup.
+- Manual Postman verification is useful for iterative development but does not replace automated regression coverage.
+
+### Next session
+1. Verify local Git state, sync main after the Categories merge, and create `feat/analytics-dashboard`.
+2. Design analytics response contracts and currency-safe aggregation before implementation.
+3. Decide how credit-card balances should be represented; do not mix unlike currencies or invent exchange rates.
+4. Implement analytics schemas → service → endpoints → Swagger inspection → Postman verification.
+5. Continue leaving `backend/tests/` untouched until the final automated-testing phase.

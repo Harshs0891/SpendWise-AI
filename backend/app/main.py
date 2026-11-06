@@ -5,6 +5,7 @@ from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.users import router as users_router
 from app.api.v1.endpoints.accounts import router as accounts_router
 from app.api.v1.endpoints.transactions import router as transactions_router
+from app.api.v1.endpoints.categories import router as categories_router
 
 settings = get_settings()
 
@@ -38,6 +39,13 @@ app.include_router(
     transactions_router,
     prefix=f"{settings.api_v1_prefix}/transactions",
     tags=["Transactions"],
+)
+
+
+app.include_router(
+    categories_router,
+    prefix=f"{settings.api_v1_prefix}/categories",
+    tags=["Categories"],
 )
 
 

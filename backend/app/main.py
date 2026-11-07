@@ -9,6 +9,7 @@ from app.api.v1.endpoints.categories import router as categories_router
 from app.api.v1.endpoints.analytics import router as analytics_router
 from app.api.v1.endpoints.transfers import router as transfers_router
 from app.api.v1.endpoints.budgets import router as budgets_router
+from app.api.v1.endpoints.csv_transactions import router as csv_transactions_router
 
 settings = get_settings()
 
@@ -85,4 +86,12 @@ app.include_router(
     budgets_router,
     prefix=f"{settings.api_v1_prefix}/budgets",
     tags=["Budgets"],
+)
+
+
+# Register CSV transaction import/export endpoints.
+app.include_router(
+    csv_transactions_router,
+    prefix=f"{settings.api_v1_prefix}/transactions/csv",
+    tags=["Transaction CSV"],
 )

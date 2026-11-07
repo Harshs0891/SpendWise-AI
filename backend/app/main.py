@@ -6,6 +6,7 @@ from app.api.v1.endpoints.users import router as users_router
 from app.api.v1.endpoints.accounts import router as accounts_router
 from app.api.v1.endpoints.transactions import router as transactions_router
 from app.api.v1.endpoints.categories import router as categories_router
+from app.api.v1.endpoints.analytics import router as analytics_router
 
 settings = get_settings()
 
@@ -46,6 +47,14 @@ app.include_router(
     categories_router,
     prefix=f"{settings.api_v1_prefix}/categories",
     tags=["Categories"],
+)
+
+
+# Register analytics endpoints.
+app.include_router(
+    analytics_router,
+    prefix=f"{settings.api_v1_prefix}/analytics",
+    tags=["Analytics"],
 )
 
 

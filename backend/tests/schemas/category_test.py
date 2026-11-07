@@ -27,6 +27,18 @@ def test_category_create_rejects_blank_name():
 
 
 def test_category_update_normalizes_fields():
-    update = CategoryUpdate(name="  Travel ", icon=" ")
+    update = CategoryUpdate(
+        name="  Travel ",
+        icon=" ",
+        color=" #12abEF ",
+    )
+
     assert update.name == "Travel"
     assert update.icon is None
+    assert update.color == "#12ABEF"
+
+
+@pytest.mark.parametrize("color", ["red", "#FFF", "FF5733", "#GGGGGG"])
+def test_category_update_rejects_invalid_color(color):
+    with pytest.raises(ValidationError):
+        CategoryUpdate(color=color)

@@ -76,6 +76,10 @@ class Transaction(Base):
             "user_id",
             "category_id",
         ),
+        Index(
+            "ix_transactions_transfer_id",
+            "transfer_id",
+        ),
     )
 
     # Unique identifier for every transaction.
@@ -111,7 +115,14 @@ class Transaction(Base):
         nullable=True,
     )
 
-    # Optional transfer aggregate linking the debit and credit ledger legs.\n    transfer_id: Mapped[uuid.UUID | None] = mapped_column(\n        Uuid(as_uuid=True),\n        ForeignKey("transfers.id", ondelete="RESTRICT"),\n        nullable=True,\n    )\n\n    # "income" or "expense".
+    # Optional transfer aggregate linking the debit and credit ledger legs.
+    transfer_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("transfers.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+
+    # "income" or "expense".
     type: Mapped[str] = mapped_column(
         String(20),
         nullable=False,

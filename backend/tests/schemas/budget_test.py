@@ -19,7 +19,7 @@ def test_budget_create_normalizes_currency_and_uses_threshold_default():
     assert budget.amount == Decimal("1000.25")
 
 
-@pytest.mark.parametrize("day", [2, 15, 31])
+@pytest.mark.parametrize("day", [2, 15, 28])
 def test_budget_create_requires_first_day_of_month(day):
     with pytest.raises(ValidationError):
         BudgetCreate(

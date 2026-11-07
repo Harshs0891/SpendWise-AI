@@ -6,6 +6,7 @@ import type {
   User,
 } from "../../types/auth";
 
+// Keep authentication HTTP calls in one place with typed request and response contracts.
 export const authApi = {
   async register(data: RegisterRequest): Promise<User> {
     const response = await api.post<User>(

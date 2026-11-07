@@ -553,3 +553,39 @@ A separate USD test wallet was created for the cross-currency rejection scenario
 2. Finish any remaining targeted manual checks only if required by the backend acceptance criteria.
 3. Continue with the next backend module; do not start automated tests until all backend implementation and manual endpoint verification are complete.
 4. At the final testing phase, add automated coverage for atomicity, idempotency races, ownership, currency validation, and analytics exclusion.
+
+
+## 2026-11-07 — Backend financial features and CSV workflows
+
+### Atomic transfers
+- Implemented a dedicated Transfer aggregate and two linked ledger entries (source expense/debit and destination income/credit) in one database transaction.
+- Added idempotency-key handling, deterministic account-row locking, ownership/activity/currency checks, and authenticated create/list/detail endpoints.
+- Transfer-linked rows are excluded from ordinary transaction lists and income/expense analytics, but included in account balance calculations.
+- Migration `8c2f4a91d6e0` was applied locally. User-reported Python compile/import and OpenAPI checks passed.
+- User-reported Postman checks passed for creation, idempotent retry, changed-payload key reuse rejection, same-account rejection, invalid account, currency mismatch, list/detail, ordinary transaction exclusion, analytics exclusion, and balance reconciliation.
+- Not verified: cross-user transfer, inactive-account-specific case, injected-failure rollback, concurrency stress, pagination edge cases, and automated tests. MVP currently permits overdrafts.
+
+### Monthly budgets
+- Implemented monthly budget CRUD and progress calculations for one expense category, month, and currency.
+- Enforces positive amount, month-start period, alert threshold 1–100, expense-category ownership/type, and unique user/category/month/currency combination.
+- Progress excludes transfer-linked ledger rows. Statuses are `on_track`, `warning`, and `exceeded`; remaining amount may be negative after overspending.
+- Migration `a91d3c7e4b20` was applied and PR #8 merged to main. User-reported Postman checks passed for CRUD, validation, duplicate prevention, category ownership/type, filters, month boundaries, and progress at 80%, 100%, and 106.67%.
+- Transfer exclusion was confirmed by code inspection only, not a dedicated Postman check. Concurrent duplicate creation and automated tests remain unverified.
+
+### CSV transaction import/export — feature branch
+- Added authenticated `GET /api/v1/transactions/csv/export` and `POST /api/v1/transactions/csv/import` on `feat/csv-import-export`.
+- Import validates headers and every row, validates account/category references through existing transaction rules, and inserts the file atomically only when every row is valid. Export supports type/account/category/date filters, excludes transfer ledger rows, emits UTF-8 BOM, and mitigates spreadsheet formula injection in user-controlled text fields.
+- CSV contract: required columns `account_id,type,amount,currency,description,transaction_date`; optional columns `id,category_id,merchant,notes`. Exported IDs are informational and ignored during import. Upload limit is 5 MB; multipart support is pinned in requirements.
+- User-reported Postman checks passed for export-all, valid two-row import, atomic rejection of a mixed-validity file, follow-up confirmation that no valid row leaked from the rejected file, expense export, combined type/account/date filters, and filtered export/import round-trip with newly generated IDs.
+- Remaining manual gaps include independent category/account/date filters, malformed headers/empty files, invalid dates/amounts/UUIDs/currency-category combinations, cross-user references, file-type/encoding/size limits, transfer exclusion, and formula-injection behavior.
+
+### Focused CSV validation unit tests
+- Added `backend/tests/csv_import_validation_test.py` using the repository's required `_test.py` suffix convention (no `test_` prefix).
+- Scope is deliberately limited to CSV service validation: missing/header-only CSV, duplicate/missing/unsupported headers, invalid transaction fields, invalid references, atomic rejection, and malformed row width.
+- The test file was authored on the feature branch; it has **not yet been run**. Do not describe it as passing. No broader test suite was added or executed.
+
+### Current branch and next milestone
+- Current work branch: `feat/csv-import-export`; CSV implementation, manual testing log, and focused validation test are on this branch. No PR has been opened or merged for this feature.
+- Backend feature work is substantially complete for the current MVP scope. Before frontend work, run the focused CSV validation test locally and resolve any failures; then review/sync the feature branch as appropriate.
+- Frontend has not started. Planned stack remains React + TypeScript + Vite + Tailwind, consuming the versioned FastAPI API.
+- After frontend implementation: complete the agreed broader automated test phase, then CI/Docker/deployment. No deployment is currently verified.

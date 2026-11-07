@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Accounts from "./pages/Accounts";
 import Transactions from "./pages/Transactions";
 
+// Public auth routes are accessible to everyone; financial pages are protected by the session.
 function App() {
   return (
     <Routes>

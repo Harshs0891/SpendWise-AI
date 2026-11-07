@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Restore the signed-in user after refresh using the token held in session storage.
   useEffect(() => {
     const token = sessionStorage.getItem("access_token");
 
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
+  // Save the token, then fetch the profile to populate shared authentication state.
   const login = async (data: LoginRequest) => {
     const result = await authApi.login(data);
 
@@ -56,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Clear the browser session token and in-memory user state together.
   const logout = () => {
     sessionStorage.removeItem("access_token");
     setUser(null);
@@ -68,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Ensure auth state is only consumed by components inside AuthProvider.
 export function useAuth() {
   const context = useContext(AuthContext);
 

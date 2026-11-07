@@ -24,11 +24,10 @@ jobs:
       run:
         working-directory: backend
 
+    # Test-only values: never use production credentials in CI.
     env:
       SECRET_KEY: ci-test-secret-key-not-for-production
       DATABASE_URL: sqlite:///./ci_test.db
-      ENVIRONMENT: testing
-      DEBUG: "false"
 
     steps:
       - name: Checkout repository

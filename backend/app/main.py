@@ -8,6 +8,7 @@ from app.api.v1.endpoints.transactions import router as transactions_router
 from app.api.v1.endpoints.categories import router as categories_router
 from app.api.v1.endpoints.analytics import router as analytics_router
 from app.api.v1.endpoints.transfers import router as transfers_router
+from app.api.v1.endpoints.budgets import router as budgets_router
 
 settings = get_settings()
 
@@ -77,4 +78,11 @@ app.include_router(
     transfers_router,
     prefix=f"{settings.api_v1_prefix}/transfers",
     tags=["Transfers"],
+)
+
+
+app.include_router(
+    budgets_router,
+    prefix=f"{settings.api_v1_prefix}/budgets",
+    tags=["Budgets"],
 )

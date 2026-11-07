@@ -7,6 +7,7 @@ import App from "./App";
 import { AuthProvider } from "./features/auth/AuthContext";
 import "./index.css";
 
+// One shared QueryClient keeps server data cached across all routes.
 const queryClient = new QueryClient();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

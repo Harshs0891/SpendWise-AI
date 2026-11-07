@@ -5,7 +5,7 @@
 ## Environment
 
 - Date: 2026-11-07
-- Feature branch: `feat/atomic-transfers`
+- Feature branch: `feat/budget-management`
 - API base URL: `http://127.0.0.1:8000`
 - API prefix: `/api/v1`
 - Database: local PostgreSQL database `spendwise_db`
@@ -150,3 +150,36 @@ The private category used in scenario 13 was created under user ID `97d9414d-756
 - Concurrent duplicate-creation race handling.
 - Exact Postman status codes for the most recent validation and authorization responses were not captured.
 - Automated tests remain deferred; `backend/tests/` has not been modified.
+
+
+### Final budget verification — filters, date boundaries, and overspending (2026-11-07)
+
+| # | Request / scenario | Expected | Observed | Result |
+|---:|---|---|---|---|
+| 14 | `GET /api/v1/budgets?period_start=2026-11-01` | Return only November budgets | Returned the November Food & Dining budget; `total: 1` | PASS |
+| 15 | `GET /api/v1/budgets?currency=INR` | Return only INR budgets | Returned the November INR Food & Dining budget; `total: 1` | PASS |
+| 16 | Create INR 100 Food & Dining expense dated 2026-10-31, then retrieve November budget | October expense must not affect November spending | November spent remained INR 15,000 | PASS |
+| 17 | Create INR 200 Food & Dining expense dated 2026-12-01, then retrieve November budget | December expense must not affect November spending | November spent remained INR 15,000 | PASS |
+| 18 | Create INR 1,000 Food & Dining expense dated 2026-11-07, then retrieve November budget | Allow overspending; remaining may be negative; utilization may exceed 100%; status remains exceeded | Spent INR 16,000; remaining INR -1,000; utilization 106.67%; status `exceeded` | PASS |
+
+The date-boundary checks were performed after the existing November spending reached INR 15,000. The two out-of-period transactions did not change the November total. The final overspending check increased November spending to INR 16,000 as expected.
+
+### Transfer-ledger exclusion — code inspection
+
+- Budget progress query explicitly filters `Transaction.transfer_id IS NULL`.
+- Transfer creation service assigns the same non-null `transfer_id` to both its debit (expense) and credit (income) ledger entries.
+- **Result: PASS by code inspection; NOT independently verified through Postman.** The transfer API does not assign a category to its ledger entries, so a normal transfer request cannot provide a meaningful category-matched budget exclusion test. Do not count this as a manual Postman pass.
+
+### Final budget verification status
+
+- Budget CRUD: 5 manual scenarios PASS.
+- Validation, duplicate prevention, and category checks: PASS.
+- Cross-user budget and private-category authorization: PASS.
+- Live progress at 80%, 100%, and 106.67%: PASS.
+- Month and currency filters: PASS.
+- October 31 / December 1 boundary exclusion from November: PASS.
+- Transfer ledger exclusion: code inspection PASS; Postman verification NOT RUN.
+- Concurrent duplicate-creation race: NOT RUN.
+- Automated tests: NOT RUN by project workflow; `backend/tests/` intentionally untouched.
+- Deployment and performance testing: NOT RUN.
+- Exact HTTP status codes were not captured for several earlier validation and authorization checks; only the observed response bodies are recorded.

@@ -71,3 +71,39 @@ The USD test account was created solely to verify cross-currency rejection. Its 
 ## Future entries
 
 Append new endpoint checks under a dated heading. Record request method/path, relevant non-secret input, expected behavior, observed status/body summary, and PASS/FAIL/NOT RUN. Never include access tokens, passwords, or database credentials.
+
+
+## Monthly budgets — manual verification (2026-11-07)
+
+### Test data
+
+| Resource | ID / details |
+|---|---|
+| User | `df674e14-6782-4f98-a39d-a2703c108e3c` |
+| Expense category | Food & Dining — `d00f8f01-2447-410e-8f76-22313d8f63a3` |
+| Created budget | `a225984f-9655-4de3-9a3f-90b045f44487` |
+| Period | 2026-11-01 through 2026-11-30 |
+| Initial amount / threshold | INR 10,000 / 80% |
+| Updated amount / threshold | INR 12,000 / 75% |
+
+### Results
+
+| # | Request / scenario | Expected | Observed | Result |
+|---:|---|---|---|---|
+| 1 | `POST /api/v1/budgets` — create November Food & Dining budget | Create a budget with computed period end and progress | Returned budget ID `a225984f-9655-4de3-9a3f-90b045f44487`; category Food & Dining; period end 2026-11-30; spent 0; remaining 10,000; utilization 0.00%; status `on_track` | PASS |
+| 2 | `GET /api/v1/budgets` — list budgets | Include the newly created budget and total count | Returned the created budget in `items`; `total: 1` | PASS |
+| 3 | `GET /api/v1/budgets/{budget_id}` — retrieve by ID | Return the matching budget and progress | Returned the expected budget ID, category, period, amount, and progress values | PASS |
+| 4 | `PATCH /api/v1/budgets/{budget_id}` — update amount and alert threshold | Update only supplied fields and recalculate progress | Amount changed to INR 12,000; threshold changed to 75%; remaining 12,000; utilization 0.00%; status `on_track`; `updated_at` changed | PASS |
+| 5 | `DELETE /api/v1/budgets/{budget_id}` — delete budget | Remove the budget | Developer confirmed deletion; follow-up `GET /api/v1/budgets` returned `items: []` and `total: 0` | PASS |
+
+The developer manually executed all five budget endpoint checks in Postman on 2026-11-07 and supplied the observed response bodies. Exact HTTP status codes were not captured in the shared results, so they are intentionally not recorded here.
+
+### Verification status and limitations
+
+- Python compilation: PASS (developer-reported).
+- FastAPI OpenAPI route inspection: PASS; all five budget operations appeared.
+- Alembic migration: PASS; revision `a91d3c7e4b20` applied locally and reported as head.
+- Postman manual CRUD checks: 5 endpoint scenarios PASS.
+- Automated tests: NOT RUN by project workflow; `backend/tests/` intentionally untouched.
+- Spending threshold transitions, category/currency/month filtering, invalid input cases, duplicate budget handling, and cross-user access were not separately verified in this manual session.
+- Deployment and performance testing: NOT RUN.

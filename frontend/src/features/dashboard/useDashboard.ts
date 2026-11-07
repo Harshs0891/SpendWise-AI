@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { dashboardApi } from "./DashboardApi";
 
+// React Query caches each dashboard section independently and refreshes invalidated data.
 export function useDashboard() {
   const summary = useQuery({
     queryKey: ["dashboard", "summary"],
@@ -17,6 +18,7 @@ export function useDashboard() {
     queryFn: dashboardApi.getAccountBalances,
   });
 
+  // Prefer INR; otherwise use the first currency returned by the summary endpoint.
   const currency =
     summary.data?.items.find((item) => item.currency === "INR")
       ?.currency ?? summary.data?.items[0]?.currency;

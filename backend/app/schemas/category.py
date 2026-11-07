@@ -68,10 +68,10 @@ class CategoryCreate(BaseModel):
 
         return value
 
-    @field_validator("color")
+    @field_validator("color", mode="before")
     @classmethod
     def validate_color(cls, value: str | None) -> str | None:
-        """Ensure colors use the hexadecimal format #RRGGBB."""
+        """Trim and validate colors in the hexadecimal format #RRGGBB."""
         if value is not None:
             value = value.strip()
 
@@ -144,7 +144,7 @@ class CategoryUpdate(BaseModel):
 
         return value
 
-    @field_validator("color")
+    @field_validator("color", mode="before")
     @classmethod
     def validate_color(cls, value: str | None) -> str | None:
         if value is not None:

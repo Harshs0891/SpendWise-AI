@@ -215,3 +215,32 @@ The date-boundary checks were performed after the existing November spending rea
 | 10 | Invalid export date range | HTTP 422 | NOT RUN | NOT RUN |
 
 Automated tests remain deferred; do not modify `backend/tests/` until the final testing phase.
+
+
+### Manual Postman results — 2026-11-07
+
+| # | Request / scenario | Expected | Observed | Result |
+|---:|---|---|---|---|
+| 1 | `GET /api/v1/transactions/csv/export` — export all | CSV with header and the authenticated user's ordinary transactions | CSV returned with the expected 10-column header and 7 transaction rows | PASS |
+| 2 | `POST /api/v1/transactions/csv/import` — valid two-row CSV | Import both rows and return new transaction IDs | `imported_count: 2`; IDs `a6b2e9ce-62fa-4aa4-b588-ff365031a3e3` and `595af19d-6520-40fe-9848-1779d9aa106d` | PASS |
+| 3 | Import CSV containing one valid row and one row with unsupported type `refund` | Reject entire file with row-level validation error; insert no rows | Error stated `CSV contains invalid rows. No transactions were imported.`; row 3 error: type must be `income` or `expense` | PASS |
+| 4 | Verify transactions after failed atomic import | Valid row from failed file must be absent | `GET /api/v1/transactions?start_date=2026-11-07&end_date=2026-11-07` returned 5 rows; none had description `Valid row should not be inserted` | PASS |
+| 5 | `GET /api/v1/transactions/csv/export?type=expense` | Export expense transactions only | Returned 7 rows; every row had type `expense` | PASS |
+| 6 | Export filtered by type, account, and date range (2026-11-07 inclusive) | Every row matches all supplied filters | Returned 4 rows; all were expenses for account `53ef8f22-c27a-4d51-acfe-0fc0b92b7a03` dated 2026-11-07 | PASS |
+| 7 | Re-import the four-row filtered export | Import all rows as new transactions; exported IDs do not overwrite existing records | `imported_count: 4`; four new IDs returned: `07640ecf-d2e1-412a-a72b-528af1ca1cc7`, `39c06c07-e44f-4e35-9278-e7aff8f9fcb5`, `feef3ccd-5b53-4f53-94db-59b08c3d4941`, `6a0a9e8f-2edc-4d24-87a8-21c9bc3d774e` | PASS |
+
+The developer supplied the CSV response bodies and import results from Postman on 2026-11-07. The filtered export → import round trip confirms that the exported `id` column is accepted while new transaction IDs are generated. The atomic-failure follow-up confirmed that the valid row from the rejected file was not inserted. Exact HTTP status-code displays were not included in the shared results, so they are not asserted in this log.
+
+### Remaining CSV verification gaps
+
+- Export filter by category independently: NOT RUN.
+- Export filter by account independently: NOT RUN.
+- Export start/end date filters independently and invalid date-range validation: NOT RUN.
+- Cross-user account/category references during import: NOT RUN.
+- Missing, duplicate, or unsupported CSV headers; empty file: NOT RUN.
+- Invalid date, amount, UUID, and currency/category combinations: NOT RUN.
+- Non-CSV filename, invalid UTF-8, and upload over 5 MB: NOT RUN.
+- Transfer-ledger exclusion from export: NOT independently verified in Postman.
+- Formula-injection mitigation: NOT independently verified in Postman.
+- Automated tests: NOT RUN by project workflow; `backend/tests/` remains intentionally untouched.
+- Deployment and performance testing: NOT RUN.

@@ -75,7 +75,10 @@ def get_dashboard_summary(
                 Decimal("0.0000"),
             ).label("total_expenses"),
         )
-        .where(Transaction.user_id == user_id)
+        .where(
+            Transaction.user_id == user_id,
+            Transaction.transfer_id.is_(None),
+        )
         .group_by(Transaction.currency)
         .order_by(Transaction.currency)
     )
@@ -191,6 +194,7 @@ def get_monthly_cash_flow(
         )
         .where(
             Transaction.user_id == user_id,
+            Transaction.transfer_id.is_(None),
             Transaction.currency == currency.upper(),
         )
         .group_by(month_expression)
@@ -264,6 +268,7 @@ def get_category_breakdown(
         )
         .where(
             Transaction.user_id == user_id,
+            Transaction.transfer_id.is_(None),
             Transaction.type == "expense",
             Transaction.currency == currency.upper(),
         )
@@ -351,6 +356,7 @@ def get_recent_transactions(
         )
         .where(
             Transaction.user_id == user_id,
+            Transaction.transfer_id.is_(None),
         )
         .order_by(
             Transaction.transaction_date.desc(),

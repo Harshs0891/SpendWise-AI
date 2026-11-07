@@ -76,6 +76,10 @@ class Transaction(Base):
             "user_id",
             "category_id",
         ),
+        Index(
+            "ix_transactions_transfer_id",
+            "transfer_id",
+        ),
     )
 
     # Unique identifier for every transaction.
@@ -108,6 +112,13 @@ class Transaction(Base):
     category_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("categories.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Optional transfer aggregate linking the debit and credit ledger legs.
+    transfer_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("transfers.id", ondelete="RESTRICT", name="fk_transactions_transfer_id_transfers"),
         nullable=True,
     )
 

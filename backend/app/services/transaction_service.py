@@ -152,6 +152,7 @@ def get_transaction_by_id(
     statement = select(Transaction).where(
         Transaction.id == transaction_id,
         Transaction.user_id == user_id,
+        Transaction.transfer_id.is_(None),
     )
 
     return db.scalar(statement)
@@ -186,7 +187,8 @@ def get_transactions(
 
     # Every query starts with the authenticated user's ID.
     statement = select(Transaction).where(
-        Transaction.user_id == user_id
+        Transaction.user_id == user_id,
+        Transaction.transfer_id.is_(None),
     )
 
     # Apply optional filters.
@@ -220,7 +222,10 @@ def get_transactions(
     count_statement = (
         select(func.count())
         .select_from(Transaction)
-        .where(Transaction.user_id == user_id)
+        .where(
+            Transaction.user_id == user_id,
+            Transaction.transfer_id.is_(None),
+        )
     )
 
     # Apply the same filters to the count query.

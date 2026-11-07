@@ -176,3 +176,39 @@ def create_transfer(
         raise
 
     return _transfer_response_data(db, transfer)
+
+
+
+def get_transfer_by_id(
+    db: Session,
+    user_id: UUID,
+    transfer_id: UUID,
+) -> dict | None:
+    transfer = db.scalar(
+        select(Transfer).where(
+            Transfer.id == transfer_id,
+            Transfer.user_id == user_id,
+        )
+    )
+    return _transfer_response_data(db, transfer) if transfer else None
+
+
+def get_transfers(
+    db: Session,
+    user_id: UUID,
+    limit: int = 20,
+    offset: int = 0,
+) -> tuple[list[dict], int]:
+    base = select(Transfer).where(Transfer.user_id == user_id)
+    total = db.scalar(
+        select(func.count()).select_from(Transfer).where(Transfer.user_id == user_id)
+    ) or 0
+    rows = list(
+        db.scalars(
+            base.order_by(
+                Transfer.transaction_date.desc(),
+                Transfer.created_at.desc(),
+            ).offset(offset).limit(limit)
+        ).all()
+    )
+    return [_transfer_response_data(db, row) for row in rows], total

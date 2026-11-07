@@ -553,3 +553,25 @@ A separate USD test wallet was created for the cross-currency rejection scenario
 2. Finish any remaining targeted manual checks only if required by the backend acceptance criteria.
 3. Continue with the next backend module; do not start automated tests until all backend implementation and manual endpoint verification are complete.
 4. At the final testing phase, add automated coverage for atomicity, idempotency races, ownership, currency validation, and analytics exclusion.
+
+
+## 2026-11-07 — CSV validation and full backend test suite verified locally
+
+### Automated test results
+- [x] Resolved the local Windows test import-path issue by running pytest from the `backend` directory with the backend virtual environment activated.
+- [x] Corrected `backend/tests/config_test.py` to supply test-only values for the required `secret_key` and `database_url` settings. Production configuration in `backend/app/core/config.py` was not weakened; both settings remain required.
+- [x] Ran the focused CSV validation suite: `python -m pytest tests/csv_import_validation_test.py -v` — **12 passed**.
+- [x] Ran the complete backend suite: `python -m pytest -v` — **16 passed, 0 failed** on Windows, Python 3.12.10, pytest 9.2.0.
+- [x] CI previously reported **16 passed, 0 failed** on Python 3.12.16.
+- [x] Existing FastAPI/Starlette test-client deprecation warning remains non-blocking; it did not cause test failures.
+
+### Verification classification
+- **Automated tests:** full local backend suite passed (16/16); CI suite passed (16/16).
+- **Manual API verification:** CSV Postman scenarios previously reported passed; this test-suite result does not add coverage for untested CSV upload/security edge cases.
+- **Deployment:** not performed or verified.
+- **Frontend:** not started.
+
+### Next steps
+1. Ensure the local checkout is synchronized with `main` after PR #10; local synchronization was not confirmed in this session.
+2. Keep the API manual-testing log aligned with the actual Postman scenarios and outstanding edge cases.
+3. Begin the React + TypeScript + Vite + Tailwind frontend when ready, using the existing FastAPI API contracts.

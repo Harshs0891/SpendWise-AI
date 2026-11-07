@@ -5,7 +5,7 @@
 ## Environment
 
 - Date: 2026-11-07
-- Feature branch: `feat/atomic-transfers`
+- Feature branch: `feat/budget-management`
 - API base URL: `http://127.0.0.1:8000`
 - API prefix: `/api/v1`
 - Database: local PostgreSQL database `spendwise_db`
@@ -71,3 +71,115 @@ The USD test account was created solely to verify cross-currency rejection. Its 
 ## Future entries
 
 Append new endpoint checks under a dated heading. Record request method/path, relevant non-secret input, expected behavior, observed status/body summary, and PASS/FAIL/NOT RUN. Never include access tokens, passwords, or database credentials.
+
+
+## Monthly budgets — manual verification (2026-11-07)
+
+### Test data
+
+| Resource | ID / details |
+|---|---|
+| User | `df674e14-6782-4f98-a39d-a2703c108e3c` |
+| Expense category | Food & Dining — `d00f8f01-2447-410e-8f76-22313d8f63a3` |
+| Created budget | `a225984f-9655-4de3-9a3f-90b045f44487` |
+| Period | 2026-11-01 through 2026-11-30 |
+| Initial amount / threshold | INR 10,000 / 80% |
+| Updated amount / threshold | INR 12,000 / 75% |
+
+### Results
+
+| # | Request / scenario | Expected | Observed | Result |
+|---:|---|---|---|---|
+| 1 | `POST /api/v1/budgets` — create November Food & Dining budget | Create a budget with computed period end and progress | Returned budget ID `a225984f-9655-4de3-9a3f-90b045f44487`; category Food & Dining; period end 2026-11-30; spent 0; remaining 10,000; utilization 0.00%; status `on_track` | PASS |
+| 2 | `GET /api/v1/budgets` — list budgets | Include the newly created budget and total count | Returned the created budget in `items`; `total: 1` | PASS |
+| 3 | `GET /api/v1/budgets/{budget_id}` — retrieve by ID | Return the matching budget and progress | Returned the expected budget ID, category, period, amount, and progress values | PASS |
+| 4 | `PATCH /api/v1/budgets/{budget_id}` — update amount and alert threshold | Update only supplied fields and recalculate progress | Amount changed to INR 12,000; threshold changed to 75%; remaining 12,000; utilization 0.00%; status `on_track`; `updated_at` changed | PASS |
+| 5 | `DELETE /api/v1/budgets/{budget_id}` — delete budget | Remove the budget | Developer confirmed deletion; follow-up `GET /api/v1/budgets` returned `items: []` and `total: 0` | PASS |
+
+The developer manually executed all five budget endpoint checks in Postman on 2026-11-07 and supplied the observed response bodies. Exact HTTP status codes were not captured in the shared results, so they are intentionally not recorded here.
+
+### Verification status and limitations
+
+- Python compilation: PASS (developer-reported).
+- FastAPI OpenAPI route inspection: PASS; all five budget operations appeared.
+- Alembic migration: PASS; revision `a91d3c7e4b20` applied locally and reported as head.
+- Postman manual CRUD checks: 5 endpoint scenarios PASS.
+- Automated tests: NOT RUN by project workflow; `backend/tests/` intentionally untouched.
+- Spending threshold transitions, category/currency/month filtering, invalid input cases, duplicate budget handling, and cross-user access were not separately verified in this manual session.
+- Deployment and performance testing: NOT RUN.
+
+
+### Additional budget edge cases and live spending checks (2026-11-07)
+
+| # | Request / scenario | Expected | Observed | Result |
+|---:|---|---|---|---|
+| 6 | `POST /api/v1/budgets` with `amount: "0"` | Reject non-positive amount during request validation | Response detail reported `greater_than`, location `body.amount`, message `Input should be greater than 0` | PASS |
+| 7 | `POST /api/v1/budgets` with `alert_threshold: 101` | Reject threshold above 100 during request validation | Response detail reported `less_than_equal`, location `body.alert_threshold`, message `Input should be less than or equal to 100` | PASS |
+| 8 | Create a second budget with the same user, category, month, and currency | Reject duplicate budget and preserve the existing record | First request created budget `0b96f4bb-2420-4f98-960e-b2b1051d9797`; repeating the same request returned `A budget already exists for this category, month, and currency.` | PASS |
+| 9 | Create an INR 12,000 Food & Dining expense dated 2026-11-07, then retrieve the November budget | Recalculate spending from matching ordinary expense transactions; at 80% utilization status is warning | Transaction `178b1b1f-8a7e-4a8b-96af-7fde27709a8c` was created. Budget response showed spent INR 12,000; remaining INR 3,000; utilization 80.00%; status `warning` | PASS |
+| 10 | Add a further INR 3,000 matching expense and retrieve the same budget | At 100% utilization status is exceeded | Follow-up budget response showed spent INR 15,000; remaining INR 0; utilization 100.00%; status `exceeded`. The second transaction's response/ID was not included in the shared results | PASS (progress result observed) |
+
+The invalid-input and duplicate responses were shared without their Postman status-code display; status codes are therefore not asserted in this log. The final exceeded-state response confirms the aggregate spending result, but the second transaction response itself was not supplied.
+
+### Updated verification status and remaining gaps
+
+- Budget CRUD endpoints: 5/5 manual scenarios PASS.
+- Budget input validation: zero amount and threshold above 100 rejected as expected.
+- Duplicate budget check: repeated same-key business dimensions rejected as expected.
+- Dynamic progress: 80% produced `warning`; 100% produced `exceeded`.
+- Automated tests: NOT RUN; `backend/tests/` remains intentionally untouched.
+- Still not separately verified: cross-user budget access, custom category belonging to another user, income-category rejection, currency/month list filters, period boundary inclusion/exclusion, transfer-ledger exclusion from budget spending, overspending above 100%, and concurrent duplicate-creation race handling.
+
+
+### Category validation and cross-user authorization checks (2026-11-07)
+
+| # | Request / scenario | Expected | Observed | Result |
+|---:|---|---|---|---|
+| 11 | `POST /api/v1/budgets` using the system `Salary` income category (`95485cd6-69d4-40e1-bdb4-22cedb99fabb`) | Reject because budgets require an expense category | Returned `Expense category not found or not accessible.` | PASS |
+| 12 | `GET /api/v1/budgets/0b96f4bb-2420-4f98-960e-b2b1051d9797` authenticated as a different user | Do not disclose another user's budget; return not found | Returned `Budget not found.` | PASS |
+| 13 | `POST /api/v1/budgets` authenticated as original user, using another user's private expense category `5a5fb9a3-5a58-4097-9371-af7802d7c73e` | Reject category not owned by the authenticated user and not a system category | Returned `Expense category not found or not accessible.` | PASS |
+
+The private category used in scenario 13 was created under user ID `97d9414d-7561-408f-864c-564671fa0875`. The budget creation attempt was made using the original user account. Response bodies were supplied; Postman status-code displays were not included, so exact status codes are not asserted here.
+
+### Updated remaining verification gaps
+
+- Budget month/currency list filters.
+- Period boundary inclusion/exclusion.
+- Transfer-ledger exclusion from budget spending.
+- Overspending above 100%.
+- Concurrent duplicate-creation race handling.
+- Exact Postman status codes for the most recent validation and authorization responses were not captured.
+- Automated tests remain deferred; `backend/tests/` has not been modified.
+
+
+### Final budget verification — filters, date boundaries, and overspending (2026-11-07)
+
+| # | Request / scenario | Expected | Observed | Result |
+|---:|---|---|---|---|
+| 14 | `GET /api/v1/budgets?period_start=2026-11-01` | Return only November budgets | Returned the November Food & Dining budget; `total: 1` | PASS |
+| 15 | `GET /api/v1/budgets?currency=INR` | Return only INR budgets | Returned the November INR Food & Dining budget; `total: 1` | PASS |
+| 16 | Create INR 100 Food & Dining expense dated 2026-10-31, then retrieve November budget | October expense must not affect November spending | November spent remained INR 15,000 | PASS |
+| 17 | Create INR 200 Food & Dining expense dated 2026-12-01, then retrieve November budget | December expense must not affect November spending | November spent remained INR 15,000 | PASS |
+| 18 | Create INR 1,000 Food & Dining expense dated 2026-11-07, then retrieve November budget | Allow overspending; remaining may be negative; utilization may exceed 100%; status remains exceeded | Spent INR 16,000; remaining INR -1,000; utilization 106.67%; status `exceeded` | PASS |
+
+The date-boundary checks were performed after the existing November spending reached INR 15,000. The two out-of-period transactions did not change the November total. The final overspending check increased November spending to INR 16,000 as expected.
+
+### Transfer-ledger exclusion — code inspection
+
+- Budget progress query explicitly filters `Transaction.transfer_id IS NULL`.
+- Transfer creation service assigns the same non-null `transfer_id` to both its debit (expense) and credit (income) ledger entries.
+- **Result: PASS by code inspection; NOT independently verified through Postman.** The transfer API does not assign a category to its ledger entries, so a normal transfer request cannot provide a meaningful category-matched budget exclusion test. Do not count this as a manual Postman pass.
+
+### Final budget verification status
+
+- Budget CRUD: 5 manual scenarios PASS.
+- Validation, duplicate prevention, and category checks: PASS.
+- Cross-user budget and private-category authorization: PASS.
+- Live progress at 80%, 100%, and 106.67%: PASS.
+- Month and currency filters: PASS.
+- October 31 / December 1 boundary exclusion from November: PASS.
+- Transfer ledger exclusion: code inspection PASS; Postman verification NOT RUN.
+- Concurrent duplicate-creation race: NOT RUN.
+- Automated tests: NOT RUN by project workflow; `backend/tests/` intentionally untouched.
+- Deployment and performance testing: NOT RUN.
+- Exact HTTP status codes were not captured for several earlier validation and authorization checks; only the observed response bodies are recorded.

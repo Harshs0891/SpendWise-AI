@@ -129,3 +129,24 @@ The invalid-input and duplicate responses were shared without their Postman stat
 - Dynamic progress: 80% produced `warning`; 100% produced `exceeded`.
 - Automated tests: NOT RUN; `backend/tests/` remains intentionally untouched.
 - Still not separately verified: cross-user budget access, custom category belonging to another user, income-category rejection, currency/month list filters, period boundary inclusion/exclusion, transfer-ledger exclusion from budget spending, overspending above 100%, and concurrent duplicate-creation race handling.
+
+
+### Category validation and cross-user authorization checks (2026-11-07)
+
+| # | Request / scenario | Expected | Observed | Result |
+|---:|---|---|---|---|
+| 11 | `POST /api/v1/budgets` using the system `Salary` income category (`95485cd6-69d4-40e1-bdb4-22cedb99fabb`) | Reject because budgets require an expense category | Returned `Expense category not found or not accessible.` | PASS |
+| 12 | `GET /api/v1/budgets/0b96f4bb-2420-4f98-960e-b2b1051d9797` authenticated as a different user | Do not disclose another user's budget; return not found | Returned `Budget not found.` | PASS |
+| 13 | `POST /api/v1/budgets` authenticated as original user, using another user's private expense category `5a5fb9a3-5a58-4097-9371-af7802d7c73e` | Reject category not owned by the authenticated user and not a system category | Returned `Expense category not found or not accessible.` | PASS |
+
+The private category used in scenario 13 was created under user ID `97d9414d-7561-408f-864c-564671fa0875`. The budget creation attempt was made using the original user account. Response bodies were supplied; Postman status-code displays were not included, so exact status codes are not asserted here.
+
+### Updated remaining verification gaps
+
+- Budget month/currency list filters.
+- Period boundary inclusion/exclusion.
+- Transfer-ledger exclusion from budget spending.
+- Overspending above 100%.
+- Concurrent duplicate-creation race handling.
+- Exact Postman status codes for the most recent validation and authorization responses were not captured.
+- Automated tests remain deferred; `backend/tests/` has not been modified.

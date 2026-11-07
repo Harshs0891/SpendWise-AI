@@ -20,21 +20,25 @@ export default function Transactions() {
   );
   const [error, setError] = useState("");
 
+  // The selected account determines where this transaction is recorded and its currency.
   const accounts = useQuery({
     queryKey: ["accounts"],
     queryFn: accountApi.getAll,
   });
 
+  // Load categories matching the selected transaction type (income or expense).
   const categories = useQuery({
     queryKey: ["categories", type],
     queryFn: () => categoryApi.getAll(type),
   });
 
+  // Display the latest 50 records; filtering and pagination can be added separately.
   const transactions = useQuery({
     queryKey: ["transactions"],
     queryFn: () => transactionApi.getAll({ limit: 50, offset: 0 }),
   });
 
+  // Refresh transactions, dashboard metrics, and account balances after a successful write.
   const createTransaction = useMutation({
     mutationFn: transactionApi.create,
     onSuccess: async () => {
@@ -53,6 +57,7 @@ export default function Transactions() {
     onError: () => setError("Could not create transaction. Check your account and category."),
   });
 
+  // Validate the selected account and build the request using the backend schema.
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     setError("");

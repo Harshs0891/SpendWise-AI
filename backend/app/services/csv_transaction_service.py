@@ -19,7 +19,7 @@ REQUIRED_HEADERS = {
     "description",
     "transaction_date",
 }
-OPTIONAL_HEADERS = {"category_id", "merchant", "notes"}
+OPTIONAL_HEADERS = {"id", "category_id", "merchant", "notes"}
 ALLOWED_HEADERS = REQUIRED_HEADERS | OPTIONAL_HEADERS
 
 

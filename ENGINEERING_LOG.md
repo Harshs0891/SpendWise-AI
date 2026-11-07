@@ -458,3 +458,41 @@ Lay the analytics foundation for the dashboard while preserving currency correct
 ### Git status
 - Feature branch: `feat/analytics-dashboard`.
 - Whether the latest local analytics changes have been committed and pushed was not confirmed in this session; verify `git status`, commit, and push before treating the remote branch as synchronized.
+
+
+## 2026-11-07 — Atomic transfers implementation (verification pending)
+
+### Implemented on `feat/atomic-transfers`
+- Added a Transfer aggregate with source/destination accounts, amount, currency, description, transaction date, and a per-user idempotency key.
+- Added nullable `transactions.transfer_id` and an index to associate the debit and credit ledger entries with the transfer.
+- Added Alembic revision `8c2f4a91d6e0`, based on `5bf5efb87ed4`, to create the transfers table and add the transaction foreign key.
+- Added Pydantic transfer request/response/list schemas.
+- Added a service that locks both account rows in deterministic order, validates owner/active/currency constraints, and inserts the transfer plus its two ledger entries in one SQLAlchemy transaction.
+- Added idempotency-key replay handling. Reusing a key with a different payload is rejected.
+- Added authenticated POST/list/detail transfer endpoints under `/api/v1/transfers`.
+- Registered the router in the FastAPI application.
+- Excluded transfer-linked ledger rows from ordinary transaction listing/detail/update and from income, expense, cash-flow, category-spending, and recent-transaction analytics. Account-balance aggregation intentionally includes both transfer legs.
+
+### Design decisions
+- Transfers are represented as one aggregate and two linked ledger entries: an expense on the source account and income on the destination account.
+- The existing income/expense transaction type constraint remains unchanged.
+- Account balances remain ledger-derived; transfer debit/credit legs therefore move value between accounts without changing the user's total assets (for same-currency asset accounts).
+- Cross-currency transfers are rejected until explicit FX conversion exists.
+- The current MVP permits overdrafts because the existing transaction system does not enforce insufficient funds. This is a deliberate compatibility choice, not a verified business requirement.
+- Transfer ledger rows are managed through the transfer API and are not editable through ordinary transaction endpoints.
+
+### Verification status
+- **Implemented in GitHub feature branch:** yes.
+- **Python compile/import:** not yet run locally.
+- **Database migration:** not yet applied locally.
+- **Postman:** not yet verified.
+- **Automated tests:** intentionally deferred; `backend/tests/` was not changed.
+- **Deployment:** not performed.
+
+### Next actions
+1. Pull `feat/atomic-transfers` locally and inspect the diff.
+2. Run Python compile/import and Alembic history checks.
+3. Apply the migration to the local PostgreSQL database.
+4. Verify transfer creation, listing, detail, idempotent retry, invalid accounts, same-account rejection, currency mismatch, cross-user access, and rollback behavior in Postman.
+5. Verify that analytics totals exclude transfers while account balances reflect both ledger legs.
+6. Add the exact manual request/response outcomes to the API testing log after Postman verification.

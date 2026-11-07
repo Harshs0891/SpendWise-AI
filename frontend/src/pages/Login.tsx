@@ -11,6 +11,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Delegate credential verification and token storage to AuthContext.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");

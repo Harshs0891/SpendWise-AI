@@ -118,7 +118,7 @@ class Transaction(Base):
     # Optional transfer aggregate linking the debit and credit ledger legs.
     transfer_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("transfers.id", ondelete="RESTRICT"),
+        ForeignKey("transfers.id", ondelete="RESTRICT", name="fk_transactions_transfer_id_transfers"),
         nullable=True,
     )
 

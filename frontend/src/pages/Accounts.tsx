@@ -12,11 +12,13 @@ export default function Accounts() {
   const [openingBalance, setOpeningBalance] = useState("0");
   const [error, setError] = useState("");
 
+  // Load the current user's accounts and cache them for reuse across screens.
   const accounts = useQuery({
     queryKey: ["accounts"],
     queryFn: accountApi.getAll,
   });
 
+  // Refresh account data and dashboard balances after an account is created.
   const createAccount = useMutation({
     mutationFn: accountApi.create,
     onSuccess: async () => {
@@ -29,6 +31,7 @@ export default function Accounts() {
     onError: () => setError("Could not create account."),
   });
 
+  // Convert the form state into the account payload expected by the backend.
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     setError("");

@@ -10,6 +10,7 @@ export default function Register() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Create the user through the auth API, then send them to the login screen.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");

@@ -5,6 +5,9 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ProtectedRoute from "./components/ProtectedRoute";
 
+import Accounts from "./pages/Accounts";
+import Transactions from "./pages/Transactions";
+
 function App() {
   return (
     <Routes>
@@ -13,6 +16,8 @@ function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/accounts" element={<Accounts />} />
+        <Route path="/transactions" element={<Transactions />} />
       </Route>
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

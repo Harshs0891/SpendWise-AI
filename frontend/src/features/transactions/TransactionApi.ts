@@ -6,6 +6,7 @@ import type {
   TransactionListResponse,
 } from "./TransactionTypes";
 
+// Centralize transaction endpoints, query parameters, and response typing.
 export const transactionApi = {
   getAll: async (filters: TransactionFilters = {}) => {
     const response = await api.get<TransactionListResponse>(
@@ -17,6 +18,7 @@ export const transactionApi = {
           category_id: filters.category_id,
           start_date: filters.start_date,
           end_date: filters.end_date,
+          // Use default pagination values when the caller does not provide them.
           limit: filters.limit ?? 20,
           offset: filters.offset ?? 0,
         },

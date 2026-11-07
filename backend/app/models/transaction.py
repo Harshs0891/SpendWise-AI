@@ -111,7 +111,7 @@ class Transaction(Base):
         nullable=True,
     )
 
-    # "income" or "expense".
+    # Optional transfer aggregate linking the debit and credit ledger legs.\n    transfer_id: Mapped[uuid.UUID | None] = mapped_column(\n        Uuid(as_uuid=True),\n        ForeignKey("transfers.id", ondelete="RESTRICT"),\n        nullable=True,\n    )\n\n    # "income" or "expense".
     type: Mapped[str] = mapped_column(
         String(20),
         nullable=False,

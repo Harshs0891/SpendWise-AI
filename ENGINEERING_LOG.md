@@ -415,3 +415,46 @@ These are manual checks, not automated test-suite results. Automated tests remai
 3. Decide how credit-card balances should be represented; do not mix unlike currencies or invent exchange rates.
 4. Implement analytics schemas → service → endpoints → Swagger inspection → Postman verification.
 5. Continue leaving `backend/tests/` untouched until the final automated-testing phase.
+
+
+## 2026-11-06 — Analytics schemas and service layer
+
+
+### Objective
+Lay the analytics foundation for the dashboard while preserving currency correctness and the agreed credit-card debt convention.
+
+### Implemented locally on `feat/analytics-dashboard`
+- [x] Added analytics response schemas for summary, cash flow, category breakdown, recent transactions, and account balances.
+- [x] Implemented `get_dashboard_summary()`: aggregates income, expenses, and net savings separately by currency.
+- [x] Implemented `get_monthly_cash_flow()`: groups income and expenses by calendar month for one required currency.
+- [x] Implemented `get_category_breakdown()`: aggregates expenses by category, includes uncategorized expenses, and calculates category percentages.
+- [x] Implemented `get_recent_transactions()`: returns the latest user-scoped transactions with optional category names.
+- [x] Implemented `get_account_balances()`: calculates balances for active user-owned accounts using the agreed asset/debt conventions.
+- [x] Python compilation/import checks were run successfully; the user confirmed all five service functions imported successfully.
+
+### Financial rules and design decisions
+- Summary values remain grouped by currency; unlike currencies are never added together.
+- Monthly cash flow and category breakdown require one selected currency.
+- Monetary calculations use Python `Decimal` and database `NUMERIC(19,4)`.
+- Date filters are inclusive.
+- Normal account balance = opening balance + income − expenses.
+- Credit-card debt = opening debt + expenses − payments/income; positive values represent outstanding debt.
+- Credit-card payments are currently assumed to be represented as income against the card account. Transfers are not implemented, so this convention depends on consistent transaction recording.
+- Analytics are calculated from existing Accounts and Transactions data; no new tables or migration were added.
+
+### Verification classification
+- **Passed:** Python compilation/import checks for the analytics service functions.
+- **Not yet verified:** Actual SQL execution against PostgreSQL, analytics HTTP routes, Swagger behavior, and Postman responses.
+- **Automated tests:** intentionally deferred until backend feature development is complete; `backend/tests/` remains untouched.
+- **Frontend/deployment:** not started / not verified.
+
+### Next session
+1. Implement the five analytics GET endpoints and request parameter validation.
+2. Register the analytics router and inspect the OpenAPI/Swagger output.
+3. Start the API and manually verify each endpoint through Postman, including empty results, date filters, currency isolation, uncategorized expenses, and credit-card calculations.
+4. Update the API manual testing log with actual outcomes.
+5. Keep automated tests deferred until the final testing phase.
+
+### Git status
+- Feature branch: `feat/analytics-dashboard`.
+- Whether the latest local analytics changes have been committed and pushed was not confirmed in this session; verify `git status`, commit, and push before treating the remote branch as synchronized.

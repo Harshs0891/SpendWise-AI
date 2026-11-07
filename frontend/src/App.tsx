@@ -8,6 +8,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Accounts from "./pages/Accounts";
 import Transactions from "./pages/Transactions";
 
+import Budgets from "./pages/Budgets";
+
 // Public auth routes are accessible to everyone; financial pages are protected by the session.
 function App() {
   return (
@@ -19,6 +21,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/accounts" element={<Accounts />} />
         <Route path="/transactions" element={<Transactions />} />
+        <Route path="/budgets" element={<Budgets />} />
       </Route>
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

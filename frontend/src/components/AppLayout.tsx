@@ -15,15 +15,16 @@ export default function AppLayout() {
       {/* Shared application navigation */}
       <header className="sticky top-0 z-50 border-b border-gray-800 bg-[#080b16]/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-
           {/* Brand */}
           <NavLink
             to="/dashboard"
             className="flex shrink-0 items-center gap-3"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-xl font-bold text-cyan-400">
-              S
-            </div>
+            <img
+              src="/favicon.svg"
+              alt="SpendWise AI"
+              className="h-11 w-11 rounded-xl object-cover"
+            />
 
             <div>
               <p className="text-lg font-bold tracking-tight text-white">

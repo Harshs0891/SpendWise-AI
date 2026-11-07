@@ -7,6 +7,7 @@ from app.api.v1.endpoints.accounts import router as accounts_router
 from app.api.v1.endpoints.transactions import router as transactions_router
 from app.api.v1.endpoints.categories import router as categories_router
 from app.api.v1.endpoints.analytics import router as analytics_router
+from app.api.v1.endpoints.transfers import router as transfers_router
 
 settings = get_settings()
 
@@ -70,3 +71,10 @@ def health_check():
         "application": settings.app_name,
         "environment": settings.environment,
     }
+
+# Register atomic transfer endpoints.
+app.include_router(
+    transfers_router,
+    prefix=f"{settings.api_v1_prefix}/transfers",
+    tags=["Transfers"],
+)

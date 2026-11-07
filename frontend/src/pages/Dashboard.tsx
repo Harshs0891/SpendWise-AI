@@ -14,6 +14,7 @@ import {
 import { useAuth } from "../features/auth/AuthContext";
 import { useDashboard } from "../features/dashboard/useDashboard";
 
+// Format monetary values consistently using the currency returned by the API.
 const formatMoney = (amount: number, currency: string) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -32,6 +33,7 @@ export default function Dashboard() {
     accountBalances,
   } = useDashboard();
 
+  // Wait for the main dashboard requests before rendering the financial overview.
   const isLoading =
     summary.isLoading ||
     recentTransactions.isLoading ||
@@ -53,6 +55,7 @@ export default function Dashboard() {
     );
   }
 
+  // Prefer INR so the KPI cards use the same currency as the main charts.
   const summaries = summary.data?.items ?? [];
   const selected = summaries.find((item) => item.currency === "INR")
     ?? summaries[0];

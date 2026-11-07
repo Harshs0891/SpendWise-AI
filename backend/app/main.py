@@ -11,12 +11,25 @@ from app.api.v1.endpoints.transfers import router as transfers_router
 from app.api.v1.endpoints.budgets import router as budgets_router
 from app.api.v1.endpoints.csv_transactions import router as csv_transactions_router
 
+from fastapi.middleware.cors import CORSMiddleware
+
 settings = get_settings()
 
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description="Personal Finance Management Platform",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Register authentication endpoints.

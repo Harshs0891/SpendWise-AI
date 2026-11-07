@@ -8,6 +8,7 @@ import type {
   AccountBalancesResponse,
 } from "./DashboardTypes";
 
+// Group dashboard HTTP calls here so pages and hooks do not manage raw URLs.
 export const dashboardApi = {
   getSummary: async () => {
     const response = await api.get<AnalyticsSummary>(

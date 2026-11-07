@@ -183,3 +183,35 @@ The date-boundary checks were performed after the existing November spending rea
 - Automated tests: NOT RUN by project workflow; `backend/tests/` intentionally untouched.
 - Deployment and performance testing: NOT RUN.
 - Exact HTTP status codes were not captured for several earlier validation and authorization checks; only the observed response bodies are recorded.
+
+
+## CSV transaction import/export — implementation verification pending
+
+### CSV contract
+
+- Import: `POST /api/v1/transactions/csv/import` (multipart field: `file`).
+- Export: `GET /api/v1/transactions/csv/export`.
+- Required columns: `account_id,type,amount,currency,description,transaction_date`.
+- Optional columns: `id,category_id,merchant,notes`. Exported `id` is informational and ignored during import; new IDs are generated.
+- Dates use ISO `YYYY-MM-DD`; amounts support up to four decimal places.
+- Account/category references are UUIDs; category may be blank.
+- UTF-8 CSV only; 5 MB upload limit.
+- Import validates all rows before inserting. Any invalid row rejects the entire file.
+- Transfer ledger entries are excluded from export. Export supports type, account, category, and date filters.
+
+### Postman verification checklist
+
+| # | Scenario | Expected | Observed | Result |
+|---:|---|---|---|---|
+| 1 | Export all transactions | UTF-8 CSV download containing the user's ordinary transactions | NOT RUN | NOT RUN |
+| 2 | Export with filters | Only matching rows returned | NOT RUN | NOT RUN |
+| 3 | Import valid multi-row CSV | All rows created; count and new IDs returned | NOT RUN | NOT RUN |
+| 4 | Import exported CSV | Successful round-trip; old IDs ignored | NOT RUN | NOT RUN |
+| 5 | Invalid amount/date/type/UUID | HTTP 422 with row numbers; no rows inserted | NOT RUN | NOT RUN |
+| 6 | Foreign account/category reference | Entire import rejected | NOT RUN | NOT RUN |
+| 7 | One valid and one invalid row | No partial insert | NOT RUN | NOT RUN |
+| 8 | Non-CSV, invalid UTF-8, or over 5 MB upload | HTTP 400 / 413 as applicable | NOT RUN | NOT RUN |
+| 9 | Missing/duplicate/unsupported headers or empty file | HTTP 422 with clear error | NOT RUN | NOT RUN |
+| 10 | Invalid export date range | HTTP 422 | NOT RUN | NOT RUN |
+
+Automated tests remain deferred; do not modify `backend/tests/` until the final testing phase.

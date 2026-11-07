@@ -107,3 +107,25 @@ The developer manually executed all five budget endpoint checks in Postman on 20
 - Automated tests: NOT RUN by project workflow; `backend/tests/` intentionally untouched.
 - Spending threshold transitions, category/currency/month filtering, invalid input cases, duplicate budget handling, and cross-user access were not separately verified in this manual session.
 - Deployment and performance testing: NOT RUN.
+
+
+### Additional budget edge cases and live spending checks (2026-11-07)
+
+| # | Request / scenario | Expected | Observed | Result |
+|---:|---|---|---|---|
+| 6 | `POST /api/v1/budgets` with `amount: "0"` | Reject non-positive amount during request validation | Response detail reported `greater_than`, location `body.amount`, message `Input should be greater than 0` | PASS |
+| 7 | `POST /api/v1/budgets` with `alert_threshold: 101` | Reject threshold above 100 during request validation | Response detail reported `less_than_equal`, location `body.alert_threshold`, message `Input should be less than or equal to 100` | PASS |
+| 8 | Create a second budget with the same user, category, month, and currency | Reject duplicate budget and preserve the existing record | First request created budget `0b96f4bb-2420-4f98-960e-b2b1051d9797`; repeating the same request returned `A budget already exists for this category, month, and currency.` | PASS |
+| 9 | Create an INR 12,000 Food & Dining expense dated 2026-11-07, then retrieve the November budget | Recalculate spending from matching ordinary expense transactions; at 80% utilization status is warning | Transaction `178b1b1f-8a7e-4a8b-96af-7fde27709a8c` was created. Budget response showed spent INR 12,000; remaining INR 3,000; utilization 80.00%; status `warning` | PASS |
+| 10 | Add a further INR 3,000 matching expense and retrieve the same budget | At 100% utilization status is exceeded | Follow-up budget response showed spent INR 15,000; remaining INR 0; utilization 100.00%; status `exceeded`. The second transaction's response/ID was not included in the shared results | PASS (progress result observed) |
+
+The invalid-input and duplicate responses were shared without their Postman status-code display; status codes are therefore not asserted in this log. The final exceeded-state response confirms the aggregate spending result, but the second transaction response itself was not supplied.
+
+### Updated verification status and remaining gaps
+
+- Budget CRUD endpoints: 5/5 manual scenarios PASS.
+- Budget input validation: zero amount and threshold above 100 rejected as expected.
+- Duplicate budget check: repeated same-key business dimensions rejected as expected.
+- Dynamic progress: 80% produced `warning`; 100% produced `exceeded`.
+- Automated tests: NOT RUN; `backend/tests/` remains intentionally untouched.
+- Still not separately verified: cross-user budget access, custom category belonging to another user, income-category rejection, currency/month list filters, period boundary inclusion/exclusion, transfer-ledger exclusion from budget spending, overspending above 100%, and concurrent duplicate-creation race handling.

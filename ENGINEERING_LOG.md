@@ -496,3 +496,60 @@ Lay the analytics foundation for the dashboard while preserving currency correct
 4. Verify transfer creation, listing, detail, idempotent retry, invalid accounts, same-account rejection, currency mismatch, cross-user access, and rollback behavior in Postman.
 5. Verify that analytics totals exclude transfers while account balances reflect both ledger legs.
 6. Add the exact manual request/response outcomes to the API testing log after Postman verification.
+
+
+## 2026-11-07 — Atomic transfers: local migration and Postman verification
+
+### Objective
+Complete local database/API verification of the atomic-transfer feature while keeping automated tests deferred until the final backend testing phase.
+
+### Implementation and local checks
+- Implemented the transfer aggregate, linked debit/credit transaction rows, schemas, service, and authenticated create/list/detail endpoints on `feat/atomic-transfers`.
+- Registered the transfer router and confirmed the three transfer routes in the FastAPI OpenAPI schema.
+- User reported successful `python -m compileall -q app` and application import; the application reported 12 routes.
+- User applied Alembic revision `8c2f4a91d6e0`; `alembic current` reported that revision as head.
+- The migration was applied to the local PostgreSQL database. These are local environment checks, not deployment checks.
+
+### Postman manual verification reported by the user
+
+| # | Endpoint / scenario | Observed result | Status |
+|---:|---|---|---|
+| 1 | `POST /api/v1/transfers` — create INR 500 transfer | HTTP success; transfer ID `c560e9ad-985b-4d50-9fba-46a16dfb7046`; debit and credit transaction IDs returned | PASS |
+| 2 | Repeat same POST with same idempotency key and same payload | Same transfer, debit, and credit IDs returned | PASS |
+| 3 | Reuse idempotency key with changed amount (500 → 700) | HTTP 400; `Idempotency-Key was already used with a different request.` | PASS |
+| 4 | Source and destination are the same account | HTTP 400; accounts must be different | PASS |
+| 5 | Non-existent source account | HTTP 400; generic invalid/inactive/not-owned account detail | PASS |
+| 6 | INR source to USD destination | HTTP 400; cross-currency transfers are unsupported | PASS |
+| 7 | `GET /api/v1/transfers` | Returned exactly one successful transfer; rejected requests did not create records | PASS |
+| 8 | `GET /api/v1/transfers/{transfer_id}` | Returned the expected transfer and linked ledger IDs | PASS |
+| 9 | `GET /api/v1/transactions` | Returned the ordinary INR 30 grocery expense; transfer debit/credit rows were absent | PASS |
+| 10 | `GET /api/v1/analytics/summary` | INR income 0, expenses 30, net savings -30; transfer legs excluded | PASS |
+| 11 | `GET /api/v1/analytics/monthly-cashflow` | November 2026 income 0 and expenses 30; transfer legs excluded | PASS |
+| 12 | `GET /api/v1/analytics/category-breakdown?currency=INR` | Total expenses 30; Uncategorized 30 (100%); transfer legs excluded | PASS |
+| 13 | `GET /api/v1/analytics/recent-transactions` | Returned only the ordinary INR 30 grocery expense; transfer legs absent | PASS |
+
+All outcomes in this table are user-reported Postman observations in the 2026-11-07 session. They are manual API checks, not automated test results.
+
+### Balance reconciliation
+The account-balance endpoint returned:
+- SpendWise Primary Account (INR): 49,470.0000.
+- SpendWise Wallet (INR): 10,500.0000.
+
+The primary account balance reconciles as INR 50,000 opening balance − INR 30 existing grocery expense − INR 500 transfer debit = INR 49,470. The wallet reconciles as INR 10,000 opening balance + INR 500 transfer credit = INR 10,500. Retrying the original transfer with the same idempotency key left both balances unchanged, confirming no duplicate ledger movement.
+
+A separate USD test wallet was created for the cross-currency rejection scenario:
+- Account ID: `292b9e9f-4a44-40aa-bbe9-b7bda67a460f`.
+- Opening balance: USD 1,000.
+- The account was used only to verify that an INR-to-USD transfer is rejected. Cleanup/archive of this temporary account has not yet been confirmed.
+
+### Verification classification and remaining coverage
+- **Passed:** Python compile/import, local Alembic migration application, route presence in OpenAPI, and the 13 manual Postman scenarios listed above.
+- **Not verified:** automated tests (intentionally deferred), cross-user transfer access, inactive-account rejection as a distinct scenario, insufficient-funds behavior (MVP currently permits overdrafts), explicit transaction rollback under an injected database failure, pagination edge cases, and concurrency stress testing.
+- **Not performed:** deployment or performance benchmarking.
+- `backend/tests/` was intentionally left untouched, following the agreed workflow.
+
+### Next actions
+1. Archive/delete the temporary USD test account if the Accounts API supports it, or clearly retain it as a development fixture.
+2. Finish any remaining targeted manual checks only if required by the backend acceptance criteria.
+3. Continue with the next backend module; do not start automated tests until all backend implementation and manual endpoint verification are complete.
+4. At the final testing phase, add automated coverage for atomicity, idempotency races, ownership, currency validation, and analytics exclusion.

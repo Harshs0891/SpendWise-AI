@@ -1,37 +1,21 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { AuthContext } from "./AuthContext";
+import type { AuthContextType } from "./AuthContext";
 
 import { authApi } from "./AuthApi";
 import type { LoginRequest, User } from "../../types/auth";
 
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  login: (data: LoginRequest) => Promise<void>;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(
-  undefined
-);
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() =>
+    Boolean(sessionStorage.getItem("access_token")),
+  );
 
   // Restore the signed-in user after refresh using the token held in session storage.
   useEffect(() => {
     const token = sessionStorage.getItem("access_token");
 
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    if (!token) return;
 
     authApi
       .getCurrentUser()
@@ -71,13 +55,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Ensure auth state is only consumed by components inside AuthProvider.
-export function useAuth() {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
-
-  return context;
-}

@@ -12,7 +12,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { useAuth } from "../features/auth/AuthContext";
+import { useAuth } from "../features/auth/AuthContextValue";
 import { useDashboard } from "../features/dashboard/useDashboard";
 
 // Colors used to distinguish expense categories in the pie chart.

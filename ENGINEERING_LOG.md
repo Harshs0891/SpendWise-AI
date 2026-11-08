@@ -575,3 +575,70 @@ A separate USD test wallet was created for the cross-currency rejection scenario
 1. Ensure the local checkout is synchronized with `main` after PR #10; local synchronization was not confirmed in this session.
 2. Keep the API manual-testing log aligned with the actual Postman scenarios and outstanding edge cases.
 3. Begin the React + TypeScript + Vite + Tailwind frontend when ready, using the existing FastAPI API contracts.
+
+
+## 2026-11-08 — GenAI backend MVP merged (PR #17)
+
+### Objective
+Deliver the first grounded GenAI capability for SpendWise AI while keeping financial calculations deterministic, tool access restricted, and user authorization enforced by the backend.
+
+### Git milestone
+- [x] Created pull request [#17 — feat: implement SpendWise AI backend MVP](https://github.com/Harshs0891/SpendWise-AI/pull/17) from `feat/genai-mvp` to `main`.
+- [x] User confirmed PR #17 was merged.
+- [x] GitHub PR metadata reported 22 changed files, +2,109 additions, and 3 deletions.
+- [ ] Local checkout synchronization with merged `main` has not yet been confirmed.
+
+### Implemented backend capabilities
+- [x] Gemini provider integration using `google-genai==3.0.0`, configured through application settings. Model used during implementation validation: `gemini-3.5-flash-lite`.
+- [x] Persistent AI conversation and message ORM models with Alembic migration revision `509bd5f6eb4d`.
+- [x] Finance tool adapters for six read-only operations:
+  - `get_financial_overview`
+  - `get_spending_by_category`
+  - `get_monthly_cash_flow`
+  - `get_budget_status`
+  - `get_recent_transactions`
+  - `get_account_balances`
+- [x] Explicit Gemini function declarations and allow-listed manual dispatch. The backend validates tool names and arguments; it does not dynamically execute model-supplied code or SQL.
+- [x] Chat orchestration service with persisted conversation history and a maximum of five tool-calling rounds.
+- [x] Authenticated chat, conversation list, conversation detail, and conversation deletion endpoints.
+- [x] Deterministic spending insights endpoint.
+- [x] Deterministic smart budget advisor endpoint.
+- [x] Monthly financial report endpoint combining spending insights and budget advice.
+
+### API routes
+- `POST /api/v1/ai/chat`
+- `GET /api/v1/ai/conversations`
+- `GET /api/v1/ai/conversations/{conversation_id}`
+- `DELETE /api/v1/ai/conversations/{conversation_id}`
+- `GET /api/v1/ai/insights/spending`
+- `GET /api/v1/ai/advisor/budget`
+- `GET /api/v1/ai/reports/monthly`
+
+### Architecture and security decisions
+- Gemini handles natural-language intent and explanations; PostgreSQL-backed finance services remain the source of truth for amounts, balances, category aggregates, and budget calculations.
+- The tool registry exposes only six approved read-only finance operations.
+- Authenticated `user_id` is injected by the backend from the current-user dependency. It is not accepted as a Gemini tool argument.
+- Tool argument validation covers supported dates, currencies, limits, and other declared inputs.
+- AI-generated financial mutations, arbitrary SQL, RAG, embeddings, vector databases, LangChain, and multi-agent orchestration are not part of this implementation.
+- Spending insights, budget advice, and monthly reports use deterministic backend code and do not require a Gemini API call.
+- Live Gemini calls are quota-sensitive; automated tests should mock provider responses and reserve live smoke tests for deliberate validation.
+
+### Verification evidence reported during implementation
+- [x] Existing backend suite was reported passing locally (94 tests) during development before the final GenAI additions.
+- [x] Gemini chat smoke test succeeded with `gemini-3.5-flash-lite`; a financial overview request invoked `get_financial_overview` and returned backend-derived figures.
+- [x] Six tool declarations/import checks succeeded.
+- [x] Spending insights, smart budget advice, and monthly report endpoints were manually exercised through Postman.
+- [ ] Full backend pytest suite rerun after the final GenAI additions and merge — not confirmed. Do not claim the prior 94 tests cover the new GenAI code.
+- [ ] Automated mocked tests for tool dispatch, argument validation, user isolation, conversation ownership, prompt injection, tool-loop exhaustion, and provider errors — outstanding.
+- [ ] Frontend integration and deployment — outstanding.
+
+### Known limitations and next actions
+1. Sync local `main` after PR #17 and verify the working tree.
+2. Rerun the complete backend suite from `backend` using `python -m pytest -q`.
+3. Add mocked tests for unknown tools, invalid arguments, cross-user isolation, conversation ownership, provider 429/5xx behavior, and the five-round tool limit.
+4. Review history truncation/context-window limits, retention policy, and privacy-aware logging.
+5. Implement the React + TypeScript frontend for chat, conversation history, spending insights, budget advice, and monthly reports.
+6. Complete end-to-end integration, security review, deployment, and operational observability; none is currently verified.
+
+### Interview concepts captured
+Function calling/tool calling, allow-listed tool registries, grounding, hallucination mitigation, prompt injection, deterministic versus generative logic, tokens/context windows, bounded tool orchestration, model selection and latency/cost, provider rate limits, conversation persistence, RAG versus structured tool retrieval, embeddings/vector databases (not currently used), evaluation, and multi-tenant authorization.

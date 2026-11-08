@@ -88,7 +88,10 @@ export default function Transfers() {
     queryFn: () => transferApi.getAll(20, 0),
   });
 
-  const accounts: Account[] = accountsQuery.data ?? [];
+  const accounts: Account[] = useMemo(
+    () => accountsQuery.data ?? [],
+    [accountsQuery.data],
+  );
 
   // Resolve the selected source account.
   const sourceAccount = useMemo(

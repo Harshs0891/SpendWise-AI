@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Activity, ArrowLeftRight, Bot, FileSpreadsheet, FileText, LayoutDashboard, LogOut, Menu, PiggyBank, Sparkles, Wallet, X } from "lucide-react";
-import { useAuth } from "../features/auth/AuthContext";
+import { useAuth } from "../features/auth/AuthContextValue";
 
 const navigation = [
   { label: "Overview", items: [

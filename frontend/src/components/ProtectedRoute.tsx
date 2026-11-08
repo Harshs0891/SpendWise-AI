@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "../features/auth/AuthContext";
+import { useAuth } from "../features/auth/AuthContextValue";
 
 // Wait for session restoration before deciding whether to render a private page.
 export default function ProtectedRoute() {

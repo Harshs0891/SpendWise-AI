@@ -29,15 +29,17 @@ function MessageBubble({ message }: { message: AIMessage }) {
 
 export default function AiAssistant() {
   const client = useQueryClient();
-  const [activeId, setActiveId] = useState<string>();
+  const [activeId, setActiveId] = useState<string | null | undefined>(undefined);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const conversations = useQuery({ queryKey: ["ai", "conversations"], queryFn: aiApi.listConversations });
+  const selectedConversationId =
+    activeId === undefined ? conversations.data?.[0]?.id : activeId ?? undefined;
   const detail = useQuery({
-    queryKey: ["ai", "conversation", activeId],
-    queryFn: () => aiApi.getConversation(activeId!),
-    enabled: Boolean(activeId),
+    queryKey: ["ai", "conversation", selectedConversationId],
+    queryFn: () => aiApi.getConversation(selectedConversationId!),
+    enabled: Boolean(selectedConversationId),
   });
   const send = useMutation({
     mutationFn: ({ text, id }: { text: string; id?: string }) => aiApi.sendMessage(text, id),
@@ -58,28 +60,24 @@ export default function AiAssistant() {
   const remove = useMutation({
     mutationFn: aiApi.deleteConversation,
     onSuccess: async (_, id) => {
-      if (activeId === id) setActiveId(undefined);
+      if (selectedConversationId === id) setActiveId(null);
       await client.invalidateQueries({ queryKey: ["ai", "conversations"] });
     },
   });
-  const messages = detail.data?.messages ?? [];
-  const optimisticMessages = useMemo(() => messages, [messages]);
+  const messages = useMemo(() => detail.data?.messages ?? [], [detail.data?.messages]);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [optimisticMessages.length, send.isPending]);
-  useEffect(() => {
-    if (!activeId && conversations.data?.length) setActiveId(conversations.data[0].id);
-  }, [activeId, conversations.data]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length, send.isPending]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
     const text = draft.trim();
     if (!text || send.isPending) return;
     setError("");
-    send.mutate({ text, id: activeId });
+    send.mutate({ text, id: selectedConversationId });
   }
 
   function startNew() {
-    setActiveId(undefined);
+    setActiveId(null);
     setDraft("");
     setError("");
   }
@@ -97,7 +95,7 @@ export default function AiAssistant() {
           <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
             {conversations.isLoading && <p className="px-2 py-4 text-xs text-slate-500">Loading history…</p>}
             {conversations.data?.map((item) => (
-              <div key={item.id} className={`group flex items-center gap-1 rounded-xl ${activeId === item.id ? "bg-slate-800" : "hover:bg-slate-800/60"}`}>
+              <div key={item.id} className={`group flex items-center gap-1 rounded-xl ${selectedConversationId === item.id ? "bg-slate-800" : "hover:bg-slate-800/60"}`}>
                 <button onClick={() => setActiveId(item.id)} className="min-w-0 flex-1 px-3 py-3 text-left"><span className="block truncate text-sm text-slate-200">{item.title || "New conversation"}</span><span className="mt-1 block text-[10px] text-slate-500">{new Date(item.updated_at).toLocaleDateString()}</span></button>
                 <button aria-label="Delete conversation" title="Delete conversation" onClick={() => remove.mutate(item.id)} className="mr-2 rounded-lg p-2 text-slate-500 opacity-0 transition hover:bg-rose-500/10 hover:text-rose-300 group-hover:opacity-100"><Trash2 size={14} /></button>
               </div>
@@ -108,7 +106,7 @@ export default function AiAssistant() {
         <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/60">
           <div className="flex items-center gap-3 border-b border-slate-800 px-5 py-4"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-300"><Sparkles size={18} /></div><div><p className="text-sm font-semibold text-white">SpendWise AI</p><p className="text-xs text-slate-500">Personal finance copilot</p></div></div>
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 md:p-6">
-            {!activeId && !messages.length && <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center text-center"><div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-500/20 bg-cyan-500/10 text-cyan-300"><Bot size={30} /></div><h2 className="text-xl font-semibold text-white">Your money, made clearer.</h2><p className="mt-2 text-sm leading-6 text-slate-400">Ask about spending, budgets, transactions, or ways to save. SpendWise AI can look up your financial data to give grounded answers.</p><div className="mt-6 grid w-full gap-2 sm:grid-cols-2">{suggestions.map((item) => <button key={item} onClick={() => setDraft(item)} className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 text-left text-xs text-slate-300 transition hover:border-cyan-500/40 hover:text-cyan-200">{item}</button>)}</div></div>}
+            {!selectedConversationId && !messages.length && <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center text-center"><div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-500/20 bg-cyan-500/10 text-cyan-300"><Bot size={30} /></div><h2 className="text-xl font-semibold text-white">Your money, made clearer.</h2><p className="mt-2 text-sm leading-6 text-slate-400">Ask about spending, budgets, transactions, or ways to save. SpendWise AI can look up your financial data to give grounded answers.</p><div className="mt-6 grid w-full gap-2 sm:grid-cols-2">{suggestions.map((item) => <button key={item} onClick={() => setDraft(item)} className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 text-left text-xs text-slate-300 transition hover:border-cyan-500/40 hover:text-cyan-200">{item}</button>)}</div></div>}
             {detail.isLoading && <p className="text-sm text-slate-500">Loading conversation…</p>}
             {detail.isError && <p role="alert" className="text-sm text-rose-300">Couldn't load this conversation. Try selecting it again.</p>}
             {messages.map((message) => <MessageBubble key={message.id} message={message} />)}

@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from fastapi.security import OAuth2PasswordRequestForm
+
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.schemas.user import (
@@ -81,6 +83,45 @@ def login(
         access_token = authenticate_user(db, user_data)
 
         # Return the authentication response.
+        return TokenResponse(
+            access_token=access_token,
+            token_type="bearer",
+            expires_in=settings.access_token_expire_minutes * 60,
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+
+
+
+@router.post(
+    "/token",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+)
+def swagger_login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    """
+    OAuth2 form-compatible login endpoint for Swagger UI.
+
+    The OAuth2 username field contains the user's email address.
+    The existing JSON login endpoint remains unchanged.
+    """
+
+    try:
+        user_data = UserLogin(
+            email=form_data.username,
+            password=form_data.password,
+        )
+
+        access_token = authenticate_user(db, user_data)
+
         return TokenResponse(
             access_token=access_token,
             token_type="bearer",

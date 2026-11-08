@@ -10,6 +10,7 @@ from app.api.v1.endpoints.analytics import router as analytics_router
 from app.api.v1.endpoints.transfers import router as transfers_router
 from app.api.v1.endpoints.budgets import router as budgets_router
 from app.api.v1.endpoints.csv_transactions import router as csv_transactions_router
+from app.api.v1.endpoints.ai import router as ai_router
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -107,4 +108,11 @@ app.include_router(
     csv_transactions_router,
     prefix=f"{settings.api_v1_prefix}/transactions/csv",
     tags=["Transaction CSV"],
+)
+
+
+# Register SpendWise AI assistant endpoints.
+app.include_router(
+    ai_router,
+    prefix=settings.api_v1_prefix,
 )

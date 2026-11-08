@@ -5,7 +5,19 @@ from app.models.transaction import Transaction
 from app.models.transfer import Transfer
 from app.models.budget import Budget
 
+from app.models.ai_conversation import AIConversation
+from app.models.ai_message import AIMessage
+
 # Export all models from this package.
 # Alembic imports this package to discover tables through Base.metadata.
 
-__all__ = ["User", "Account", "Category", "Transaction", "Transfer", "Budget"]
+__all__ = [
+    "User",
+    "Account",
+    "Category",
+    "Transaction",
+    "Transfer",
+    "Budget",
+    "AIConversation",
+    "AIMessage",
+]

@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     # Database configuration
     database_url: str
 
+    # Gemini API configuration.
+    # Optional here so existing tests and non-AI features
+    # can still initialize Settings without a Gemini key.
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-3.8-flash"
+
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",
         env_file_encoding="utf-8",

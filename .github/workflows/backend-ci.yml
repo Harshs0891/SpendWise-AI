@@ -20,14 +20,30 @@ jobs:
     name: Backend tests (Python 3.12)
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: spendwise_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d spendwise_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # Required to import the FastAPI app in CI; no ENVIRONMENT override here,
+    # so unit tests exercise the normal development default.
+    env:
+      SECRET_KEY: ci-test-secret-key-not-for-production
+      DATABASE_URL: postgresql+psycopg://postgres@localhost:5432/spendwise_test
+
     defaults:
       run:
         working-directory: backend
-
-    # Test-only values: never use production credentials in CI.
-    env:
-      SECRET_KEY: ci-test-secret-key-not-for-production
-      DATABASE_URL: sqlite:///./ci_test.db
 
     steps:
       - name: Checkout repository
@@ -45,5 +61,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run backend tests
-        run: python -m pytest -v
+      # Run the existing unit suite with the application's normal defaults.
+      - name: Run backend unit tests
+        run: python -m pytest -v --ignore=tests/api_integration_test.py
+
+      # Start a fresh pytest process with test-only settings and the disposable DB.
+      - name: Run PostgreSQL API integration tests
+        env:
+          ENVIRONMENT: testing
+          SECRET_KEY: ci-test-secret-key-not-for-production
+          DATABASE_URL: postgresql+psycopg://postgres@localhost:5432/spendwise_test
+        run: python -m pytest -v tests/api_integration_test.py

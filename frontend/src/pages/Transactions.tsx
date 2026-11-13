@@ -8,6 +8,8 @@ import { transactionApi } from "../features/transactions/TransactionApi";
 import type {
   TransactionFilters,
   TransactionType,
+  Transaction,
+  TransactionUpdate,
 } from "../features/transactions/TransactionTypes";
 
 // Keep pagination small enough for a readable transaction table.
@@ -37,6 +39,16 @@ export default function Transactions() {
     new Date().toLocaleDateString("en-CA"),
   );
   const [formError, setFormError] = useState("");
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [editType, setEditType] = useState<TransactionType>("expense");
+  const [editAccountId, setEditAccountId] = useState("");
+  const [editCategoryId, setEditCategoryId] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editMerchant, setEditMerchant] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editError, setEditError] = useState("");
 
   // Transaction filter state.
   const [filterType, setFilterType] = useState<
@@ -60,6 +72,12 @@ export default function Transactions() {
   const categories = useQuery({
     queryKey: ["categories", createType],
     queryFn: () => categoryApi.getAll(createType),
+  });
+
+  const editCategories = useQuery({
+    queryKey: ["categories", "transaction-edit", editType],
+    queryFn: () => categoryApi.getAll(editType),
+    enabled: Boolean(editingTransaction),
   });
 
   // Fetch categories available for the current filter.
@@ -113,6 +131,56 @@ export default function Transactions() {
       );
     },
   });
+
+  const updateTransaction = useMutation({
+    mutationFn: transactionApi.update,
+    onSuccess: async () => {
+      setEditingTransaction(null);
+      setEditError("");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+      ]);
+    },
+    onError: () => setEditError("Could not update transaction. Please review the fields and try again."),
+  });
+
+  function openEdit(transaction: Transaction) {
+    setEditingTransaction(transaction);
+    setEditType(transaction.type);
+    setEditAccountId(transaction.account_id);
+    setEditCategoryId(transaction.category_id ?? "");
+    setEditAmount(String(transaction.amount));
+    setEditDescription(transaction.description);
+    setEditMerchant(transaction.merchant ?? "");
+    setEditDate(transaction.transaction_date);
+    setEditNotes(transaction.notes ?? "");
+    setEditError("");
+  }
+
+  function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingTransaction) return;
+    const account = accounts.data?.find((item) => item.id === editAccountId);
+    const numericAmount = Number(editAmount);
+    if (!account) return setEditError("Please select a valid account.");
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) return setEditError("Enter an amount greater than zero.");
+    if (editDescription.trim().length < 2) return setEditError("Description must contain at least 2 characters.");
+
+    const data: TransactionUpdate = {
+      account_id: account.id,
+      category_id: editCategoryId || null,
+      type: editType,
+      amount: numericAmount,
+      currency: account.currency,
+      description: editDescription.trim(),
+      merchant: editMerchant.trim() || null,
+      transaction_date: editDate,
+      notes: editNotes.trim() || null,
+    };
+    updateTransaction.mutate({ id: editingTransaction.id, data });
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -495,6 +563,7 @@ export default function Transactions() {
                     <th className="px-3 py-4">Category</th>
                     <th className="px-3 py-4">Date</th>
                     <th className="px-3 py-4 text-right">Amount</th>
+                    <th className="px-3 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
 
@@ -559,6 +628,16 @@ export default function Transactions() {
                             transaction.currency,
                           )}
                         </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(transaction)}
+                            className="rounded-lg border border-cyan-500/40 px-3 py-1.5 text-xs font-medium text-cyan-300 transition hover:bg-cyan-500/10"
+                            aria-label={`Edit ${transaction.description}`}
+                          >
+                            Edit
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -614,6 +693,56 @@ export default function Transactions() {
           </>
         )}
       </section>
+      {editingTransaction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4" role="presentation">
+          <section role="dialog" aria-modal="true" aria-labelledby="edit-transaction-title" className="my-8 w-full max-w-2xl rounded-2xl border border-gray-700 bg-[#111827] p-6 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <h2 id="edit-transaction-title" className="text-xl font-semibold">Edit Transaction</h2>
+              <button type="button" onClick={() => setEditingTransaction(null)} className="rounded-lg px-3 py-1 text-gray-400 hover:bg-gray-800 hover:text-white" aria-label="Close edit transaction">✕</button>
+            </div>
+            <form onSubmit={handleEditSubmit} className="grid gap-4 md:grid-cols-2">
+              <label className="text-sm text-gray-300">Transaction type
+                <select value={editType} onChange={(e) => { setEditType(e.target.value as TransactionType); setEditCategoryId(""); }} className={inputClass + " mt-2"}>
+                  <option value="expense">Expense</option><option value="income">Income</option>
+                </select>
+              </label>
+              <label className="text-sm text-gray-300">Account
+                <select required value={editAccountId} onChange={(e) => setEditAccountId(e.target.value)} className={inputClass + " mt-2"}>
+                  <option value="">Select account</option>
+                  {accounts.data?.map((account) => <option key={account.id} value={account.id}>{account.name} ({account.currency})</option>)}
+                </select>
+              </label>
+              <label className="text-sm text-gray-300">Category
+                <select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)} className={inputClass + " mt-2"}>
+                  <option value="">Uncategorized</option>
+                  {editCategories.data?.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                </select>
+              </label>
+              <label className="text-sm text-gray-300">Amount
+                <input required type="number" min="0.0001" step="0.0001" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className={inputClass + " mt-2"} />
+              </label>
+              <label className="text-sm text-gray-300">Description
+                <input required minLength={2} maxLength={255} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className={inputClass + " mt-2"} />
+              </label>
+              <label className="text-sm text-gray-300">Merchant (optional)
+                <input value={editMerchant} onChange={(e) => setEditMerchant(e.target.value)} className={inputClass + " mt-2"} />
+              </label>
+              <label className="text-sm text-gray-300">Transaction date
+                <input required type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className={inputClass + " mt-2"} />
+              </label>
+              <label className="text-sm text-gray-300">Notes (optional)
+                <input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className={inputClass + " mt-2"} />
+              </label>
+              {editError && <p role="alert" className="text-sm text-red-400 md:col-span-2">{editError}</p>}
+              <div className="flex justify-end gap-3 md:col-span-2">
+                <button type="button" onClick={() => setEditingTransaction(null)} className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">Cancel</button>
+                <button type="submit" disabled={updateTransaction.isPending} className="rounded-lg bg-cyan-500 px-5 py-2 font-semibold text-black hover:bg-cyan-400 disabled:opacity-50">{updateTransaction.isPending ? "Saving..." : "Save Changes"}</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
     </main>
   );
 }

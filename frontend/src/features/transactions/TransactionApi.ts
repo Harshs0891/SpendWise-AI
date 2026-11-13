@@ -2,6 +2,7 @@ import { api } from "../../lib/api";
 import type {
   Transaction,
   TransactionCreate,
+  TransactionUpdate,
   TransactionFilters,
   TransactionListResponse,
 } from "./TransactionTypes";
@@ -29,11 +30,12 @@ export const transactionApi = {
   },
 
   create: async (data: TransactionCreate) => {
-    const response = await api.post<Transaction>(
-      "/transactions",
-      data
-    );
+    const response = await api.post<Transaction>("/transactions", data);
+    return response.data;
+  },
 
+  update: async ({ id, data }: { id: string; data: TransactionUpdate }) => {
+    const response = await api.patch<Transaction>(`/transactions/${id}`, data);
     return response.data;
   },
 };

@@ -28,6 +28,8 @@ export interface TransactionCreate {
   notes: string | null;
 }
 
+export type TransactionUpdate = Partial<TransactionCreate>;
+
 export interface TransactionListResponse {
   items: Transaction[];
   total: number;

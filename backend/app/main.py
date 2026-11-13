@@ -19,6 +19,7 @@ app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description="Personal Finance Management Platform",
+    debug=settings.debug,
 )
 
 app.add_middleware(

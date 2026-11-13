@@ -20,9 +20,14 @@ class Settings(BaseSettings):
     # Database configuration
     database_url: str
 
-    # Gemini API configuration.
-    # Optional here so existing tests and non-AI features
-    # can still initialize Settings without a Gemini key.
+    # Comma-free JSON array in environment, e.g. ["https://app.example.com"].
+    # Local development origins remain the defaults.
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+
+    # Gemini API configuration. Optional for core finance features.
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-3.8-flash"
 
